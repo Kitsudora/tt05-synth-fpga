@@ -27,7 +27,7 @@ module tb ();
     wire [7:0] uio_out;
     wire [7:0] uio_oe;
 
-    tt_um_toivoh_test dut (
+    tt_um_toivoh_synth dut (
     // include power ports for the Gate Level test
     `ifdef GL_TEST
         .VPWR( 1'b1),
