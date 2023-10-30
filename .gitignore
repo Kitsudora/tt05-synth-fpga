@@ -1,0 +1,11 @@
+.DS_Store
+.idea
+.vscode
+*.vcd
+runs
+src/sim_build
+src/__pycache__/
+src/results.xml
+src/user_config.tcl
+
+src/tb-data.txt
