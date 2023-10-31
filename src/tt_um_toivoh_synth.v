@@ -45,7 +45,6 @@ module tt_um_toivoh_synth #(
 	wire reset = !rst_n;
 
 	reg [1:0] state;
-	wire counter_en = ena && (state == 0);
 
 	// Configuration input
 	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
@@ -84,11 +83,11 @@ module tt_um_toivoh_synth #(
 	wire [PERIOD_BITS:0] mod_period[NUM_MODS];
 	wire [OCT_BITS-1:0] mod_oct[NUM_MODS];
 
-	wire mod_trigger[NUM_MODS];
+	wire mod_trigger;
 
 	reg [PERIOD_BITS:0] mod_counter_state[NUM_MODS];
-	wire [PERIOD_BITS:0] mod_counter_next_state[NUM_MODS];
-	wire mod_counter_state_we[NUM_MODS];
+	wire [PERIOD_BITS:0] mod_counter_next_state;
+	wire mod_counter_state_we;
 
 	reg do_mod[NUM_MODS];
 	// TODO: consider overflow
@@ -104,16 +103,21 @@ module tt_um_toivoh_synth #(
 			assign mod_period[i] = {2'b01, cfg[16*(i+1) + PERIOD_BITS-2 -: PERIOD_BITS-1]};
 			assign mod_oct[i]    = cfg[16*(i+1) + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 
-			Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) mod_counter(
-				.period0(mod_period[i]), .period1(mod_period[i] << 1), .enable(counter_en),
-				.trigger(mod_trigger[i]),
-
-				.counter(mod_counter_state[i]), .counter_we(mod_counter_state_we[i]), .next_counter(mod_counter_next_state[i])
-			);
-
-			assign nf_mod[i] = mod_oct[i] + do_mod[i];
+			assign nf_mod[i] = mod_oct[i] + do_mod[i]; // TODO: multiplex?
 		end
 	endgenerate
+
+	wire mod_index = state;
+	wire counter_en = state < NUM_MODS;
+
+	wire [PERIOD_BITS:0] curr_mod_period = mod_period[mod_index];
+	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) mod_counter(
+		.period0(curr_mod_period), .period1(curr_mod_period << 1), .enable(counter_en),
+		.trigger(mod_trigger),
+
+		.counter(mod_counter_state[mod_index]), .counter_we(mod_counter_state_we), .next_counter(mod_counter_next_state)
+	);
+
 
 	reg signed [STATE_BITS-1:0] y;
 	reg signed [STATE_BITS-1:0] v;
@@ -193,13 +197,12 @@ module tt_um_toivoh_synth #(
 			always @(posedge clk) begin
 				if (reset) begin
 					do_mod[i] <= 0;
-					mod_counter_state[i] <= 0;
+					mod_counter_state[i] <= 0; // TODO: way to reset that rhymes better with non-reset-case?
 				end else begin
-					if (state == 0) begin
-						do_mod[i] <= mod_trigger[i];
+					if (i == mod_index) begin
+						if (counter_en) do_mod[i] <= mod_trigger;
+						if (mod_counter_state_we) mod_counter_state[i] <= mod_counter_next_state[i];
 					end
-
-					if (mod_counter_state_we[i]) mod_counter_state[i] <= mod_counter_next_state[i];
 				end
 			end
 
