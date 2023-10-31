@@ -33,6 +33,10 @@ module tt_um_toivoh_synth #(
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
+	localparam NUM_MODS = 2;
+	localparam CUTOFF_INDEX = 0;
+	localparam DAMP_INDEX = 1;
+
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
 	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
@@ -75,35 +79,44 @@ module tt_um_toivoh_synth #(
 	);
 	reg [WAVE_BITS-1:0] saw;
 
-	// Osc and damp counters
-	wire [PERIOD_BITS:0] osc_period  = {2'b01, cfg[16 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
-	wire [PERIOD_BITS:0] damp_period = {2'b01, cfg[32 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
-	wire [OCT_BITS-1:0] osc_oct  = cfg[16 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
-	wire [OCT_BITS-1:0] damp_oct = cfg[32 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
-	wire osc_trigger, damp_trigger;
 
-	reg [PERIOD_BITS:0] osc_counter_state, damp_counter_state;
-	wire [PERIOD_BITS:0] osc_counter_next_state, damp_counter_next_state;
-	wire osc_counter_state_we, damp_counter_state_we;
-	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) osc_counter(
-		.period0(osc_period), .period1(osc_period << 1), .enable(counter_en),
-		.trigger(osc_trigger),
+	// Mod counters
+	wire [PERIOD_BITS:0] mod_period[NUM_MODS];
+	wire [OCT_BITS-1:0] mod_oct[NUM_MODS];
 
-		.counter(osc_counter_state), .counter_we(osc_counter_state_we), .next_counter(osc_counter_next_state)
-	);
-	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) damp_counter(
-		.period0(damp_period), .period1(damp_period << 1), .enable(counter_en),
-		.trigger(damp_trigger),
+	wire mod_trigger[NUM_MODS];
 
-		.counter(damp_counter_state), .counter_we(damp_counter_state_we), .next_counter(damp_counter_next_state)
-	);
-	reg do_osc, do_damp; // TODO: Could I do without these?
+	reg [PERIOD_BITS:0] mod_counter_state[NUM_MODS];
+	wire [PERIOD_BITS:0] mod_counter_next_state[NUM_MODS];
+	wire mod_counter_state_we[NUM_MODS];
+
+	reg do_mod[NUM_MODS];
+	// TODO: consider overflow
+	wire [OCT_BITS-1:0] nf_mod[NUM_MODS];
+
+	wire [OCT_BITS-1:0] nf_cutoff = nf_mod[CUTOFF_INDEX];
+	wire [OCT_BITS-1:0] nf_damp = nf_mod[DAMP_INDEX];
+
+	generate
+		genvar i;
+		for (i = 0; i < NUM_MODS; i++) begin : counters
+			// TODO: update offset into cfg
+			assign mod_period[i] = {2'b01, cfg[16*(i+1) + PERIOD_BITS-2 -: PERIOD_BITS-1]};
+			assign mod_oct[i]    = cfg[16*(i+1) + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+
+			Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) mod_counter(
+				.period0(mod_period[i]), .period1(mod_period[i] << 1), .enable(counter_en),
+				.trigger(mod_trigger[i]),
+
+				.counter(mod_counter_state[i]), .counter_we(mod_counter_state_we[i]), .next_counter(mod_counter_next_state[i])
+			);
+
+			assign nf_mod[i] = mod_oct[i] + do_mod[i];
+		end
+	endgenerate
 
 	reg signed [STATE_BITS-1:0] y;
 	reg signed [STATE_BITS-1:0] v;
-
-	wire [OCT_BITS-1:0] nf_osc  = osc_oct  + do_osc;
-	wire [OCT_BITS-1:0] nf_damp = damp_oct + do_damp;
 
 	reg signed [STATE_BITS-1:0] a_src;
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
@@ -121,7 +134,7 @@ module tt_um_toivoh_synth #(
 		endcase
 		case (state)
 			0: nf = nf_damp;
-			1, 2, 3: nf = nf_osc;
+			1, 2, 3: nf = nf_cutoff;
 		endcase
 	end
 
@@ -141,12 +154,8 @@ module tt_um_toivoh_synth #(
 			saw <= 0;
 			y <= 0;
 			v <= 0;
-			do_osc <= 0;
-			do_damp <= 0;
 
 			saw_counter_state <= 0;
-			osc_counter_state <= 0;
-			damp_counter_state <= 0;
 		end else begin
 			if (cfg_in_en[0]) cfg[ 7: 0] <= cfg_in;
 			if (cfg_in_en[1]) cfg[15: 8] <= cfg_in;
@@ -158,29 +167,44 @@ module tt_um_toivoh_synth #(
 			if (state == 0) begin
 				oct_counter <= next_oct_counter;
 				saw <= saw + saw_trigger;
-				do_osc <= osc_trigger;
-				do_damp <= damp_trigger;
 
 				//v <= v - ((v >>> LEAST_SHR) >>> nf_damp);
 				v <= next_state;
 			end else if (state == 1) begin
-				//v <= v + ($signed({saw, {(FEED_SHL-1){1'b0}}}) >>> nf_osc);
+				//v <= v + ($signed({saw, {(FEED_SHL-1){1'b0}}}) >>> nf_cutoff);
 				v <= next_state;
 			end else if (state == 2) begin
-				//y <= y + ((v >>> LEAST_SHR) >>> nf_osc);
+				//y <= y + ((v >>> LEAST_SHR) >>> nf_cutoff);
 				y <= next_state;
 			end else if (state == 3) begin
-				//v <= v - ((y >>> LEAST_SHR) >>> nf_osc);
+				//v <= v - ((y >>> LEAST_SHR) >>> nf_cutoff);
 				v <= next_state;
 			end
 
 			if (saw_counter_state_we) saw_counter_state <= saw_counter_next_state;
-			if (osc_counter_state_we) osc_counter_state <= osc_counter_next_state;
-			if (damp_counter_state_we) damp_counter_state <= damp_counter_next_state;
 
 			state <= state + 1;
 		end
 	end
+
+	generate
+		for (i = 0; i < NUM_MODS; i++) begin : counter_update
+
+			always @(posedge clk) begin
+				if (reset) begin
+					do_mod[i] <= 0;
+					mod_counter_state[i] <= 0;
+				end else begin
+					if (state == 0) begin
+						do_mod[i] <= mod_trigger[i];
+					end
+
+					if (mod_counter_state_we[i]) mod_counter_state[i] <= mod_counter_next_state[i];
+				end
+			end
+
+		end
+	endgenerate
 
 	//assign uo_out = saw;
 	assign uo_out = y >>> EXTRA_BITS;
