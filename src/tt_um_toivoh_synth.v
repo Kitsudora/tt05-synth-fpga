@@ -1,26 +1,22 @@
 `default_nettype none
 
-module Counter #( parameter PERIOD_BITS = 8, parameter LOG2_STEP = 0 ) (
-		input wire clk,
-		input wire reset,
+module Counter #( parameter PERIOD_BITS = 8, LOG2_STEP = 0 ) (
 		input wire [PERIOD_BITS-1:0] period0,
 		input wire [PERIOD_BITS-1:0] period1,
 		input wire enable,
-		output wire trigger
+		output wire trigger,
+
+		// External state: Provide current state in counter, update it to next_counter if counter_we is true.
+		input wire [PERIOD_BITS-1:0] counter,
+		output wire counter_we,
+		output wire [PERIOD_BITS-1:0] next_counter
 	);
 
-	reg [PERIOD_BITS-1:0] counter;
-	wire [PERIOD_BITS-1:0] delta_counter;
 	assign trigger = enable & !(|counter[PERIOD_BITS-1:LOG2_STEP]); // Trigger if decreasing by 1 << LOG2_STEP would wrap around.
-	assign delta_counter = (trigger ? period1 : period0) - (1 << LOG2_STEP);
 
-	always @(posedge clk) begin
-		if (reset) begin
-			counter <= 0;
-		end else if (enable) begin
-			counter <= counter + delta_counter;
-		end
-	end
+	wire [PERIOD_BITS-1:0] delta_counter = (trigger ? period1 : period0) - (1 << LOG2_STEP);
+	assign counter_we = enable;
+	assign next_counter = counter + delta_counter;
 endmodule
 
 module tt_um_toivoh_synth #(
@@ -67,9 +63,15 @@ module tt_um_toivoh_synth #(
 	wire [OCT_BITS-1:0] oct = cfg[PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire saw_en = oct_enables[oct];
 	wire saw_trigger;
+
+	reg [PERIOD_BITS-1:0] saw_counter_state;
+	wire [PERIOD_BITS-1:0] saw_counter_next_state;
+	wire saw_counter_state_we;
 	Counter #(.PERIOD_BITS(PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
-		.clk(clk), .reset(reset), .period0({PERIOD_BITS{1'b0}}), .period1(saw_period), .enable(saw_en & counter_en),
-		.trigger(saw_trigger)
+		.period0({PERIOD_BITS{1'b0}}), .period1(saw_period), .enable(saw_en & counter_en),
+		.trigger(saw_trigger),
+
+		.counter(saw_counter_state), .counter_we(saw_counter_state_we), .next_counter(saw_counter_next_state)
 	);
 	reg [WAVE_BITS-1:0] saw;
 
@@ -79,13 +81,21 @@ module tt_um_toivoh_synth #(
 	wire [OCT_BITS-1:0] osc_oct  = cfg[16 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire [OCT_BITS-1:0] damp_oct = cfg[32 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire osc_trigger, damp_trigger;
+
+	reg [PERIOD_BITS:0] osc_counter_state, damp_counter_state;
+	wire [PERIOD_BITS:0] osc_counter_next_state, damp_counter_next_state;
+	wire osc_counter_state_we, damp_counter_state_we;
 	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) osc_counter(
-		.clk(clk), .reset(reset), .period0(osc_period), .period1(osc_period << 1), .enable(counter_en),
-		.trigger(osc_trigger)
+		.period0(osc_period), .period1(osc_period << 1), .enable(counter_en),
+		.trigger(osc_trigger),
+
+		.counter(osc_counter_state), .counter_we(osc_counter_state_we), .next_counter(osc_counter_next_state)
 	);
 	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) damp_counter(
-		.clk(clk), .reset(reset), .period0(damp_period), .period1(damp_period << 1), .enable(counter_en),
-		.trigger(damp_trigger)
+		.period0(damp_period), .period1(damp_period << 1), .enable(counter_en),
+		.trigger(damp_trigger),
+
+		.counter(damp_counter_state), .counter_we(damp_counter_state_we), .next_counter(damp_counter_next_state)
 	);
 	reg do_osc, do_damp; // TODO: Could I do without these?
 
@@ -133,6 +143,10 @@ module tt_um_toivoh_synth #(
 			v <= 0;
 			do_osc <= 0;
 			do_damp <= 0;
+
+			saw_counter_state <= 0;
+			osc_counter_state <= 0;
+			damp_counter_state <= 0;
 		end else begin
 			if (cfg_in_en[0]) cfg[ 7: 0] <= cfg_in;
 			if (cfg_in_en[1]) cfg[15: 8] <= cfg_in;
@@ -159,6 +173,10 @@ module tt_um_toivoh_synth #(
 				//v <= v - ((y >>> LEAST_SHR) >>> nf_osc);
 				v <= next_state;
 			end
+
+			if (saw_counter_state_we) saw_counter_state <= saw_counter_next_state;
+			if (osc_counter_state_we) osc_counter_state <= osc_counter_next_state;
+			if (damp_counter_state_we) damp_counter_state <= damp_counter_next_state;
 
 			state <= state + 1;
 		end
