@@ -20,7 +20,7 @@ module Counter #( parameter PERIOD_BITS = 8, LOG2_STEP = 0 ) (
 endmodule
 
 module tt_um_toivoh_synth #(
-		parameter DIVIDER_BITS = 7, parameter OCT_BITS = 3, parameter PERIOD_BITS = 10, parameter WAVE_BITS = 8,
+		parameter DIVIDER_BITS = 7, parameter OCT_BITS = 3, parameter OSC_PERIOD_BITS = 10, parameter MOD_PERIOD_BITS = 6, parameter WAVE_BITS = 8,
 		parameter LEAST_SHR = 3
 	) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
@@ -62,16 +62,16 @@ module tt_um_toivoh_synth #(
 
 
 	// Sawtooth
-	wire [PERIOD_BITS-1:0] saw_period = {1'b1, cfg[PERIOD_BITS-2:0]};
-	wire [OCT_BITS-1:0] oct = cfg[PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+	wire [OSC_PERIOD_BITS-1:0] saw_period = {1'b1, cfg[OSC_PERIOD_BITS-2:0]};
+	wire [OCT_BITS-1:0] oct = cfg[OSC_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire saw_en = oct_enables[oct];
 	wire saw_trigger;
 
-	reg [PERIOD_BITS-1:0] saw_counter_state;
-	wire [PERIOD_BITS-1:0] saw_counter_next_state;
+	reg [OSC_PERIOD_BITS-1:0] saw_counter_state;
+	wire [OSC_PERIOD_BITS-1:0] saw_counter_next_state;
 	wire saw_counter_state_we;
-	Counter #(.PERIOD_BITS(PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
-		.period0({PERIOD_BITS{1'b0}}), .period1(saw_period), .enable(saw_en & counter_en),
+	Counter #(.PERIOD_BITS(OSC_PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
+		.period0({OSC_PERIOD_BITS{1'b0}}), .period1(saw_period), .enable(saw_en & counter_en),
 		.trigger(saw_trigger),
 
 		.counter(saw_counter_state), .counter_we(saw_counter_state_we), .next_counter(saw_counter_next_state)
@@ -80,13 +80,13 @@ module tt_um_toivoh_synth #(
 
 
 	// Mod counters
-	wire [PERIOD_BITS:0] mod_period[NUM_MODS];
+	wire [MOD_PERIOD_BITS:0] mod_period[NUM_MODS];
 	wire [OCT_BITS-1:0] mod_oct[NUM_MODS];
 
 	wire mod_trigger;
 
-	reg [PERIOD_BITS:0] mod_counter_state[NUM_MODS];
-	wire [PERIOD_BITS:0] mod_counter_next_state;
+	reg [MOD_PERIOD_BITS:0] mod_counter_state[NUM_MODS];
+	wire [MOD_PERIOD_BITS:0] mod_counter_next_state;
 	wire mod_counter_state_we;
 
 	reg do_mod[NUM_MODS];
@@ -100,8 +100,8 @@ module tt_um_toivoh_synth #(
 		genvar i;
 		for (i = 0; i < NUM_MODS; i++) begin : counters
 			// TODO: update offset into cfg
-			assign mod_period[i] = {2'b01, cfg[16*(i+1) + PERIOD_BITS-2 -: PERIOD_BITS-1]};
-			assign mod_oct[i]    = cfg[16*(i+1) + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+			assign mod_period[i] = {2'b01, cfg[16*(i+1) + MOD_PERIOD_BITS-2 -: MOD_PERIOD_BITS-1]};
+			assign mod_oct[i]    = cfg[16*(i+1) + MOD_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 
 			assign nf_mod[i] = mod_oct[i] + do_mod[i]; // TODO: multiplex?
 		end
@@ -110,8 +110,8 @@ module tt_um_toivoh_synth #(
 	wire mod_index = state;
 	wire counter_en = state < NUM_MODS;
 
-	wire [PERIOD_BITS:0] curr_mod_period = mod_period[mod_index];
-	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) mod_counter(
+	wire [MOD_PERIOD_BITS:0] curr_mod_period = mod_period[mod_index];
+	Counter #(.PERIOD_BITS(MOD_PERIOD_BITS+1), .LOG2_STEP(MOD_PERIOD_BITS)) mod_counter(
 		.period0(curr_mod_period), .period1(curr_mod_period << 1), .enable(counter_en),
 		.trigger(mod_trigger),
 
@@ -149,12 +149,11 @@ module tt_um_toivoh_synth #(
 		if (reset) begin
 			state <= 0;
 			oct_counter <= 0;
-			//cfg <= 0;
-			//cfg <= {3'd3, 9'd56};
 			cfg[15:0] <= {3'd3, 9'd56};
-			cfg[31:16] <= {3'd3, 9'd56};
-			cfg[47:32] <= {3'd4, 9'd56};
-			//cfg[47:32] <= {3'd6, 9'd56};
+			
+			//cfg[31:16] <= {3'd3, 9'd56}; cfg[47:32] <= {3'd4, 9'd56};
+			cfg[31:16] <= {3'd3, 9'd56} >> 4; cfg[47:32] <= {3'd4, 9'd56} >> 4;
+			
 			saw <= 0;
 			y <= 0;
 			v <= 0;
