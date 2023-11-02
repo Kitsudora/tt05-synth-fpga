@@ -32,8 +32,14 @@ void sample_counter(PairVector &v, const std::string &name, CounterModel &c) {
 void sample_voice(PairVector &v, VoiceModel &voice) {
 	int i;
 	sample(v, "out", voice.out);
-	for (int i = 0; i < voice.NUM_OSCS; i++) sample_counter(v, "osc" + std::to_string(i), voice.oscs[i]);
+	for (int i = 0; i < voice.NUM_OSCS; i++) {
+		std::string n = "osc" + std::to_string(i);
+		sample_counter(v, n, voice.oscs[i]);
+		sample(v, n + ".saw", voice.saw[i]);
+	}
 	for (int i = 0; i < voice.NUM_MODS; i++) sample_counter(v, "mod" + std::to_string(i), voice.mods[i]);
+	sample(v, "y", voice.y);
+	sample(v, "v", voice.v);
 }
 
 void output_name_line(std::ofstream &fout, const PairVector &v) {

@@ -61,16 +61,19 @@ async def test_waveform(dut):
 NUM_OSCS = 2
 NUM_MODS = 3
 
-def sample(v, x): v.append(int(x))
+def sample(v, x): v.append(int(x.value))
 
 def sample_voice(v, voice):
-	sample(v, voice.y_out.value)
+	sample(v, voice.y_out)
 	for i in range(NUM_OSCS):
-		sample(v, voice.cfg[i].value)
-		sample(v, voice.saw_counter_state[i].value)
+		sample(v, voice.cfg[i])
+		sample(v, voice.saw_counter_state[i])
+		sample(v, voice.saw[i])
 	for i in range(NUM_MODS):
-		sample(v, voice.cfg[i + NUM_OSCS].value)
-		sample(v, voice.mod_counter_state[i].value)
+		sample(v, voice.cfg[i + NUM_OSCS])
+		sample(v, voice.mod_counter_state[i])
+	sample(v, voice.y)
+	sample(v, voice.v)
 
 @cocotb.test()
 async def test_compare(dut):
@@ -103,7 +106,7 @@ async def test_compare(dut):
 
 	try:
 		with open("model.data") as f:
-			names = f.readline().split(" ")
+			names = f.readline().rstrip().split(" ")
 			rev_names = {name: i for (i, name) in enumerate(names)}
 
 			ignore = set()
@@ -111,9 +114,10 @@ async def test_compare(dut):
 
 			await ClockCycles(dut.clk, 1)
 			line_number = 0
+			num_fails = 0
 			while True:
 				line_number += 1
-				line = f.readline()
+				line = f.readline().rstrip()
 				if line == "": break
 				items = line.split(" ")
 				if line[0] == "c":
@@ -125,17 +129,21 @@ async def test_compare(dut):
 					sample_voice(v, dut.dut)
 
 					match = True
+					assert len(v) == len(states)
 					for (i, value) in enumerate(v):
 						if not i in ignore and value != states[i]: match = False
 
 					if not match:
+						num_fails += 1
 						print()
 						print("Mismatch on line", line_number)
 						for (i, value) in enumerate(v):
 							print(value == states[i], "\t", names[i], ":\t", states[i], ",\t", value)
 
-					assert match
+					assert num_fails < 3
 
 					await ClockCycles(dut.clk, 1)
+
+			assert num_fails == 0
 	except FileNotFoundError:
 		println("model.data not found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
