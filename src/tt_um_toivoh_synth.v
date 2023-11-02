@@ -37,6 +37,8 @@ module tt_um_toivoh_synth #(
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
+	localparam OUT_BITS = 8;
+
 	localparam CEIL_LOG2_NUM_OSCS = 1;
 	localparam NUM_OSCS = 2;
 
@@ -128,7 +130,7 @@ module tt_um_toivoh_synth #(
 			state <= 0;
 			oct_counter <= 0;
 		end else begin
-			state <= state + next_state;
+			state <= next_state[2:0];
 			if (next_state[3]) oct_counter <= next_oct_counter;
 		end
 	end
@@ -139,12 +141,14 @@ module tt_um_toivoh_synth #(
 	wire update_saw = state < NUM_OSCS;
 	wire [CEIL_LOG2_NUM_OSCS-1:0] saw_index = state[CEIL_LOG2_NUM_OSCS-1:0];
 
-	wire saw_en = oct_enables[saw_oct[saw_index]];
+	wire [OCT_BITS-1:0] curr_saw_oct = saw_oct[saw_index];
+	wire [2**OCT_BITS-1:0] saw_oct_enables = {1'b0, oct_enables[2**OCT_BITS-2:0]};
+	wire saw_en = saw_oct_enables[curr_saw_oct];
 	wire saw_trigger;
 
 	wire [OSC_PERIOD_BITS-1:0] saw_period[NUM_OSCS];
 	wire [OCT_BITS-1:0] saw_oct[NUM_OSCS];
-	reg [WAVE_BITS-1:0] saw;
+	reg [WAVE_BITS-1:0] saw[NUM_OSCS];
 	wire [WAVE_BITS-1:0] curr_saw = saw[saw_index];
 	wire [WAVE_BITS-1:0] next_saw = curr_saw + saw_trigger;
 
@@ -216,7 +220,7 @@ module tt_um_toivoh_synth #(
 				end else begin
 					if (i == mod_index) begin
 						if (update_mod) do_mod[i] <= mod_trigger;
-						if (mod_counter_state_we) mod_counter_state[i] <= mod_counter_next_state[i];
+						if (mod_counter_state_we) mod_counter_state[i] <= mod_counter_next_state;
 					end
 				end
 			end
@@ -251,25 +255,25 @@ module tt_um_toivoh_synth #(
 				a_src = v;
 				// curr_saw will depend on state[0]
 				//shifter_src = {curr_saw, {(FEED_SHL-1){1'b0}}};
-				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL-1){1'b0}}};
+				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
 				nf_index = VOL_INDEX;
 			end
 			FSTATE_DAMP: begin
 				filter_target = TARGET_V;
 				a_src = v;
-				shifter_src = ~(v >>> LEAST_SHR); // cheaper negation
+				shifter_src = ~v[STATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = DAMP_INDEX;
 			end
 			FSTATE_CUTOFF_Y: begin
 				filter_target = TARGET_Y;
 				a_src = y;
-				shifter_src = v >>> LEAST_SHR;
+				shifter_src = v[STATE_BITS-1:LEAST_SHR];
 				nf_index = CUTOFF_INDEX;
 			end
 			FSTATE_CUTOFF_V: begin
 				filter_target = TARGET_V;
 				a_src = v;
-				shifter_src = ~(y >>> LEAST_SHR); // cheaper negation
+				shifter_src = ~y[STATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = CUTOFF_INDEX;
 			end
 			default: begin
@@ -282,9 +286,10 @@ module tt_um_toivoh_synth #(
 	end
 
 	// TODO: consider overflow
-	wire [OCT_BITS-1:0] nf = mod_oct[nf_index] + ~do_mod[nf_index];
+	wire [OCT_BITS-1:0] nf = mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]);
 
-	wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
+	//wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
+	wire signed [STATE_BITS-1:0] b_src = shifter_src >>> nf; // use same size of a_src and b_src to avoid lint warning
 	wire [STATE_BITS-1:0] next_filter_state = a_src + b_src;
 
 	always @(posedge clk) begin
@@ -297,6 +302,23 @@ module tt_um_toivoh_synth #(
 		end
 	end
 
-	//assign uo_out = saw;
-	assign uo_out = y >>> EXTRA_BITS;
+	// Output
+	// ======
+	//assign uo_out = saw[0];
+	wire [OUT_BITS-1:0] y_out = y[STATE_BITS-1 -: OUT_BITS];
+	assign uo_out = {~y[OUT_BITS-1], y[OUT_BITS-2:0]};
+
+	// Debug aids
+	// ==========
+	wire [15:0] cfg0 = cfg[0];
+	wire [15:0] cfg1 = cfg[1];
+	wire [15:0] cfg2 = cfg[2];
+	wire [15:0] cfg3 = cfg[3];
+	wire [15:0] cfg4 = cfg[4];
+	wire [15:0] cfg5 = cfg[5];
+	wire [15:0] cfg6 = cfg[6];
+	wire [15:0] cfg7 = cfg[7];
+
+	wire [OCT_BITS-1:0] saw_oct0 = saw_oct[0];
+	wire [OCT_BITS-1:0] saw_oct1 = saw_oct[1];
 endmodule

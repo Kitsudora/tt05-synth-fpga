@@ -22,7 +22,8 @@ async def test(dut):
 
 	period = (512 + 56) << 3;
 
-	preserved = True
+	#preserved = True
+	preserved = False
 	try:
 		oct_counter = dut.dut.oct_counter.value
 	except AttributeError:
@@ -34,7 +35,7 @@ async def test(dut):
 			for i in range(2*period):
 				file.write(str(0 + dut.dut.oct_counter.value) + " ")
 				file.write(str(0 + dut.dut.saw_counter.counter.value) + " ")
-				file.write(str(0 + dut.dut.saw.value) + " ")
+				file.write(str(0 + dut.dut.saw[0].value) + " ")
 				file.write(str(0 + dut.dut.y.value) + " ")
 				file.write(str(0 + dut.dut.v.value) + " ")
 				file.write(str(0 + dut.dut.uo_out.value) + " ")
