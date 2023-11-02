@@ -31,7 +31,13 @@ async def test(dut):
 		preserved = False
 
 	if preserved:
-		#dut.dut.cfg[4].value = 1 << 5;
+		#dut.dut.cfg[0].value = 256;
+		#dut.dut.cfg[1].value = 256;
+		dut.dut.cfg[0].value = dut.dut.cfg[1].value = 512;
+		#dut.dut.cfg[2+0].value = 1 << 5;
+		dut.dut.cfg[2+0].value = 1 << 4;
+		dut.dut.cfg[2+1].value = 3 << 5;
+		dut.dut.cfg[2+2].value = 2 << 5;
 		#dut.dut.y = -1 << 19;
 		await ClockCycles(dut.clk, 8)
 		with open("tb-data.txt", "w") as file:
