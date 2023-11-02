@@ -31,7 +31,9 @@ async def test(dut):
 		preserved = False
 
 	if preserved:
-		dut.dut.cfg[4].value = 2 << 5;
+		#dut.dut.cfg[4].value = 1 << 5;
+		#dut.dut.y = -1 << 19;
+		await ClockCycles(dut.clk, 8)
 		with open("tb-data.txt", "w") as file:
 			file.write("data = [")
 			for i in range(2*period):

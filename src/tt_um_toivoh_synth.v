@@ -296,10 +296,10 @@ module tt_um_toivoh_synth #(
 
 	// Saturate filter output
 	// ----------------------
-	wire [STATE_BITS:0] filter_sum = a_src + b_src;
-	wire filter_c_out = filter_sum[STATE_BITS];
-	wire filter_max = ~a_sign & ~b_sign &  filter_c_out;
-	wire filter_min =  a_sign &  b_sign & ~filter_c_out;
+	wire [STATE_BITS-1:0] filter_sum = a_src + b_src;
+	wire filter_sum_sign = filter_sum[STATE_BITS-1];
+	wire filter_max = ~a_sign & ~b_sign &  filter_sum_sign;
+	wire filter_min =  a_sign &  b_sign & ~filter_sum_sign;
 	wire filter_sat = filter_max | filter_min;
 	wire [STATE_BITS-1:0] filter_sat_value = {~filter_max, {(STATE_BITS-1){filter_max}}};
 	wire [STATE_BITS-1:0] next_filter_state = filter_sat ? filter_sat_value : filter_sum[STATE_BITS-1:0];
