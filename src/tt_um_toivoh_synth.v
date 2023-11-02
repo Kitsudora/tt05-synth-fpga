@@ -1,5 +1,31 @@
 `default_nettype none
 
+module RCAdder #( parameter BITS = 8 ) (
+		input wire [BITS-1:0] x, y,
+		input wire carry_in,
+		output wire [BITS-1:0] sum,
+		output wire [BITS-1:0] carries_out,
+		output wire carry_out
+	);
+	wire [BITS:0] c;
+	assign c[0] = carry_in;
+	assign carries_out = c[BITS:1];
+	assign carry_out = c[BITS];
+
+	//wire [2:0] temp[BITS];
+	genvar i;
+	generate
+		for (i=0; i < BITS; i++) begin
+			//assign temp[i] = {x[i], 1'b1} + {y[i], c[i]};
+			//assign {c[i+1], sum[i]} = temp[i][2:1];
+			assign c[i+1] = x[i]&y[i] | c[i]&(x[i] | y[i]);
+			assign sum[i] = c[i]&x[i]&y[i] | (c[i] | x[i] | y[i])&~c[i+1];
+		end
+	endgenerate
+
+	//assign sum = x+y+carry_in;
+endmodule
+
 module Counter #( parameter PERIOD_BITS = 8, LOG2_STEP = 0 ) (
 		input wire [PERIOD_BITS-1:0] period0,
 		input wire [PERIOD_BITS-1:0] period1,
@@ -55,7 +81,11 @@ module tt_um_toivoh_synth #(
 
 	// Octave divider
 	reg [DIVIDER_BITS-1:0] oct_counter;
-	wire [DIVIDER_BITS-1:0] next_oct_counter = oct_counter + 1;
+
+	//wire [DIVIDER_BITS-1:0] next_oct_counter = oct_counter + 1;
+	wire [DIVIDER_BITS-1:0] next_oct_counter;
+	RCAdder #(.BITS(DIVIDER_BITS)) oct_counter_adder(.sum(next_oct_counter), .x(oct_counter), .y('0), .carry_in(1'b1));
+
 	wire [DIVIDER_BITS:0] oct_enables;
 	assign oct_enables[0] = 1;
 	assign oct_enables[DIVIDER_BITS:1] = next_oct_counter & ~oct_counter; // Could optimize oct_enables[1] to just next_oct_counter[0]
