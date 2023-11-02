@@ -286,8 +286,8 @@ module tt_um_toivoh_synth #(
 		endcase
 	end
 
-	// TODO: consider overflow
-	wire [OCT_BITS-1:0] nf = mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]);
+	wire [OCT_BITS:0] nf0 = mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]);
+	wire [OCT_BITS-1:0] nf = nf0[OCT_BITS] ? '1 : nf0[OCT_BITS-1:0]; // saturate nf
 
 	//wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
 	wire signed [STATE_BITS-1:0] b_src = shifter_src >>> nf; // use same size of a_src and b_src to avoid lint warning
