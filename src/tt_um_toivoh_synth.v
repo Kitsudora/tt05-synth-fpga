@@ -321,4 +321,7 @@ module tt_um_toivoh_synth #(
 
 	wire [OCT_BITS-1:0] saw_oct0 = saw_oct[0];
 	wire [OCT_BITS-1:0] saw_oct1 = saw_oct[1];
+
+	wire [WAVE_BITS-1:0] saw0 = saw[0];
+	wire [WAVE_BITS-1:0] saw1 = saw[1];
 endmodule
