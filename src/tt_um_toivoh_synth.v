@@ -245,6 +245,7 @@ module tt_um_toivoh_synth #(
 
 	// Not registers, but assigned in the case below:
 	reg signed [STATE_BITS-1:0] a_src;
+	wire a_sign = a_src[STATE_BITS-1];
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
 	reg [CEIL_LOG2_NUM_MODS-1:0] nf_index;
 	reg [1:0] filter_target;
@@ -290,8 +291,21 @@ module tt_um_toivoh_synth #(
 
 	//wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
 	wire signed [STATE_BITS-1:0] b_src = shifter_src >>> nf; // use same size of a_src and b_src to avoid lint warning
-	wire [STATE_BITS-1:0] next_filter_state = a_src + b_src;
+	wire b_sign = b_src[STATE_BITS-1];
+	//wire [STATE_BITS-1:0] next_filter_state = a_src + b_src;
 
+	// Saturate filter output
+	// ----------------------
+	wire [STATE_BITS:0] filter_sum = a_src + b_src;
+	wire filter_c_out = filter_sum[STATE_BITS];
+	wire filter_max = ~a_sign & ~b_sign &  filter_c_out;
+	wire filter_min =  a_sign &  b_sign & ~filter_c_out;
+	wire filter_sat = filter_max | filter_min;
+	wire [STATE_BITS-1:0] filter_sat_value = {~filter_max, {(STATE_BITS-1){filter_max}}};
+	wire [STATE_BITS-1:0] next_filter_state = filter_sat ? filter_sat_value : filter_sum[STATE_BITS-1:0];
+
+	// Filter state update
+	// -------------------
 	always @(posedge clk) begin
 		if (reset) begin
 			y <= 0;
