@@ -9,3 +9,5 @@ src/results.xml
 src/user_config.tcl
 
 src/tb-data.txt
+src/model
+src/model.data
