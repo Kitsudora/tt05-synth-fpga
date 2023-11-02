@@ -46,6 +46,11 @@ module tt_um_toivoh_synth #(
 	localparam DAMP_INDEX = 1;
 	localparam VOL_INDEX = 2;
 
+	localparam CEIL_LOG2_CFG_WORDS = 3;
+	localparam CFG_WORDS = 8;
+	localparam OSC_PERIOD_BASE = 0;
+	localparam MOD_PERIOD_BASE = NUM_OSCS;
+
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
 	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
@@ -53,13 +58,59 @@ module tt_um_toivoh_synth #(
 
 	wire reset = !rst_n;
 
-	// Configuration input
-	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
-	wire [7:0] cfg_in = uio_in;
-	wire [7:0] cfg_in_en = ui_in;
-
-
 	genvar i;
+
+
+	// Configuration registers
+	// =======================
+
+	wire [1:0] cfg_we; // byte enables
+	wire [15:0] cfg_w_data;
+	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_w_addr;
+	reg [15:0] cfg[CFG_WORDS];
+
+	generate
+		for (i=0; i < CFG_WORDS; i++) begin
+			always @(posedge clk) begin
+				if (reset) begin
+					cfg[i] <= '0;
+				end else if (i == cfg_w_addr) begin
+					if (cfg_we[0]) cfg[i][7:0]  <= cfg_w_data[7:0];
+					if (cfg_we[1]) cfg[i][15:8] <= cfg_w_data[15:8];
+				end
+			end
+		end
+	endgenerate
+
+
+	// Configuration input
+	// ===================
+	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
+	wire [7:0] cfg_in_data = uio_in;
+	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_in_addr = ui_in[CEIL_LOG2_CFG_WORDS:1];
+	wire cfg_in_addr0 = ui_in[0];
+	wire cfg_in_strobe_raw = ui_in[7];
+
+	reg [1:0] strobe_sync; // synchronize strobe to clk
+	wire cfg_in_strobe = strobe_sync[0];
+
+	reg cfg_in_prev_strobe;
+	always @(posedge clk) begin
+		strobe_sync <= {cfg_in_strobe_raw, strobe_sync[1:1]};
+
+		if (reset) cfg_in_prev_strobe <= 1'b0;
+		else cfg_in_prev_strobe <= strobe_sync[0];
+	end
+
+	wire cfg_in_strobed = cfg_in_strobe & ~cfg_in_prev_strobe;
+	assign cfg_we[0] = cfg_in_strobed & ~cfg_in_addr0;
+	assign cfg_we[1] = cfg_in_strobed &  cfg_in_addr0;
+	assign cfg_w_data = {cfg_in_data, cfg_in_data};
+	assign cfg_w_addr = cfg_in_addr;
+
+
+	// State machine
+	// =============
 
 	reg [2:0] state;
 	wire [3:0] next_state = state + 1;
@@ -78,7 +129,7 @@ module tt_um_toivoh_synth #(
 			oct_counter <= 0;
 		end else begin
 			state <= state + next_state;
-			oct_counter <= oct_counter + next_state[3];
+			if (next_state[3]) oct_counter <= next_oct_counter;
 		end
 	end
 
@@ -91,8 +142,8 @@ module tt_um_toivoh_synth #(
 	wire saw_en = oct_enables[saw_oct[saw_index]];
 	wire saw_trigger;
 
-	wire [OSC_PERIOD_BITS-1:0] saw_period[NUM_OSCS]; // = {1'b1, cfg[OSC_PERIOD_BITS-2:0]}; // TODO: cfg
-	wire [OCT_BITS-1:0] saw_oct[NUM_OSCS]; // = cfg[OSC_PERIOD_BITS-2+OCT_BITS -: OCT_BITS]; // TODO: cfg
+	wire [OSC_PERIOD_BITS-1:0] saw_period[NUM_OSCS];
+	wire [OCT_BITS-1:0] saw_oct[NUM_OSCS];
 	reg [WAVE_BITS-1:0] saw;
 	wire [WAVE_BITS-1:0] curr_saw = saw[saw_index];
 	wire [WAVE_BITS-1:0] next_saw = curr_saw + saw_trigger;
@@ -108,7 +159,10 @@ module tt_um_toivoh_synth #(
 	);
 
 	generate
-		for (i=0; i < NUM_OSCS; i++) begin : osc_update
+		for (i=0; i < NUM_OSCS; i++) begin : osc
+			assign saw_period[i] = {1'b1, cfg[OSC_PERIOD_BASE+i][OSC_PERIOD_BITS-2:0]};
+			assign saw_oct[i] = cfg[OSC_PERIOD_BASE+i][OSC_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+
 			always @(posedge clk) begin
 				if (reset) begin
 					saw_counter_state[i] <= '0;
@@ -140,9 +194,8 @@ module tt_um_toivoh_synth #(
 
 	generate
 		for (i = 0; i < NUM_MODS; i++) begin : mod_counters
-			// TODO: update offset into cfg
-			//assign mod_period[i] = {2'b01, cfg[16*(i+1) + MOD_PERIOD_BITS-2 -: MOD_PERIOD_BITS-1]};
-			//assign mod_oct[i]    = cfg[16*(i+1) + MOD_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+			assign mod_period[i] = {2'b01, cfg[MOD_PERIOD_BASE+i][MOD_PERIOD_BITS-2 -: MOD_PERIOD_BITS-1]};
+			assign mod_oct[i]    = cfg[MOD_PERIOD_BASE+i][MOD_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 		end
 	endgenerate
 
