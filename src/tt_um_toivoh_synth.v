@@ -255,8 +255,8 @@ module tt_um_toivoh_synth #(
 				filter_target = TARGET_V;
 				a_src = v;
 				// curr_saw will depend on state[0]
-				//shifter_src = {curr_saw, {(FEED_SHL-1){1'b0}}};
-				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
+				//shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
+				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
 				nf_index = VOL_INDEX;
 			end
 			FSTATE_DAMP: begin
