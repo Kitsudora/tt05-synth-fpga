@@ -320,7 +320,7 @@ module tt_um_toivoh_synth #(
 	// ======
 	//assign uo_out = saw[0];
 	wire [OUT_BITS-1:0] y_out = y[STATE_BITS-1 -: OUT_BITS];
-	assign uo_out = {~y[OUT_BITS-1], y[OUT_BITS-2:0]};
+	assign uo_out = {~y_out[OUT_BITS-1], y_out[OUT_BITS-2:0]};
 
 	// Debug aids
 	// ==========

@@ -20,16 +20,18 @@ async def test(dut):
 	# enable
 	dut.ena.value = 1
 
-	period = (512 + 56) << 3;
+	#period = (512 + 56) << 3;
+	period = 512;
 
-	#preserved = True
-	preserved = False
+	preserved = True
+	#preserved = False
 	try:
 		oct_counter = dut.dut.oct_counter.value
 	except AttributeError:
 		preserved = False
 
 	if preserved:
+		dut.dut.cfg[4].value = 2 << 5;
 		with open("tb-data.txt", "w") as file:
 			file.write("data = [")
 			for i in range(2*period):
@@ -40,7 +42,7 @@ async def test(dut):
 				file.write(str(0 + dut.dut.v.value) + " ")
 				file.write(str(0 + dut.dut.uo_out.value) + " ")
 				file.write(";")
-				await ClockCycles(dut.clk, 4)
+				await ClockCycles(dut.clk, 8)
 			file.write("]")
 	else:
-		ClockCycles(dut.clk, 2*period*4)
+		ClockCycles(dut.clk, 2*period*8)
