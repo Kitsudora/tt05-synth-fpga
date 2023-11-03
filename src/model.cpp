@@ -150,6 +150,7 @@ void run_model() {
 }
 
 int main(int argc, char *argv[]) {
+	srand(18561165);
 	run_model();
 	return 0;
 }
