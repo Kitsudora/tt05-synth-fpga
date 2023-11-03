@@ -4,7 +4,7 @@
 #include <fstream>
 #include <stdlib.h>
 
-#include "synth.h"
+#include "hwmodel.h"
 
 const int OCT_BITS = 4;
 const int OSC_PERIOD_BITS = 10;

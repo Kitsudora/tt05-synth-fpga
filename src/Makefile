@@ -39,7 +39,7 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 
 
-model: model.cpp synth.cpp synth.h
+model: model.cpp hwmodel.cpp hwmodel.h
 
 model.data: model
 	./model

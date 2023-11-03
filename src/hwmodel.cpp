@@ -1,4 +1,4 @@
-#include "synth.h"
+#include "hwmodel.h"
 
 int VoiceModel::update(int state) {
 	const int EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
