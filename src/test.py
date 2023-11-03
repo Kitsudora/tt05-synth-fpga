@@ -84,8 +84,11 @@ def sample(v, x, nbits=64, keep=True):
 		v.append(-1)
 
 def sample_voice(v, voice):
-	prev_state = int(voice.state.value) - 1
-	full_state = 0 <= prev_state < NUM_FSTATES
+	state = int(voice.state.value)
+	prev_state = state - 1
+	full_prev_state = 0 <= prev_state < NUM_FSTATES
+	full_state = 0 <= state < NUM_FSTATES
+
 	sample(v, voice.y_out)
 	sample(v, voice.state)
 	sample(v, voice.oct_counter)
@@ -139,9 +142,14 @@ async def test_compare(dut):
 			ignore = set()
 			ignore.add(rev_names["out"])
 
+			delay = set()
+			delay.add(rev_names["shifter_src"])
+			delay.add(rev_names["nf"])
+
 			await ClockCycles(dut.clk, 1)
 			line_number = 1
 			num_fails = 0
+			last_v = None
 			while True:
 				line_number += 1
 				line = f.readline().rstrip()
@@ -152,8 +160,15 @@ async def test_compare(dut):
 						key, value = item.split(":")
 						states[int(key)] = int(value)
 
-					v = []
-					sample_voice(v, dut.dut)
+					vv = []
+					sample_voice(vv, dut.dut)
+					v = vv.copy()
+					if last_v != None:
+						for i in delay: v[i] = last_v[i]
+					else:
+						for i in delay: v[i] = -1
+					last_v = vv
+
 
 					match = True
 					assert len(v) == len(states)
