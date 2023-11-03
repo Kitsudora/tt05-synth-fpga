@@ -155,6 +155,8 @@ async def test_compare(dut):
 			last_v = None
 			while True:
 				line_number += 1
+				if line_number % 1000 == 0: dut._log.info("line " + str(line_number))
+
 				line = f.readline().rstrip()
 				if line == "": break
 				items = line.split(" ")
@@ -189,6 +191,12 @@ async def test_compare(dut):
 
 					if oct_enables_index in ignore: ignore.remove(oct_enables_index)
 					await ClockCycles(dut.clk, 1)
+				elif line[0] == "p":
+					# Update configuration
+					for (i, cfgval) in enumerate(items[1:]):
+						dut.dut.cfg[i].value = int(cfgval)
+				else:
+					assert False
 
 			assert num_fails == 0
 	except FileNotFoundError:

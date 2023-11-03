@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 
 #include "synth.h"
 
@@ -15,6 +16,11 @@ const int OUTPUT_BITS = 8;
 
 const int LOG2_SWEEP_UPDATE_PERIOD = 0; // 3;
 const int SWEEP_LOG2_STEP = 4; // <= SWEEP_PERIOD_BITS - 1
+
+const int CFG_WORDS = 8;
+
+const int num_cfgs_to_try = 100;
+const int num_samples_per_cfg = 100;
 
 
 typedef std::pair<std::string, int> Pair;
@@ -66,10 +72,34 @@ void output_change_line(std::ofstream &fout, const PairVector &v, const PairVect
 	fout << "\n";
 }
 
+void output_cfg_line(std::ofstream &fout, const int cfg[]) {
+	fout << "p";
+	for (int i = 0; i < CFG_WORDS; i++) fout << " " << cfg[i];
+	fout << "\n";
+}
+
+void rand_cfg(int cfg[]) {
+	for (int i = 0; i < CFG_WORDS; i++) cfg[i] = rand() & 0xffff;
+
+	for (int i = 0; i < VoiceModel::NUM_OSCS; i++) cfg[i] = rand() & ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
+	for (int i = 0; i < VoiceModel::NUM_MODS; i++) cfg[VoiceModel::NUM_OSCS + i] = rand() & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
+}
+
+void set_cfg(VoiceModel &voice, int cfg[]) {
+	for (int i = 0; i < voice.NUM_OSCS; i++) voice.oscs[i].float_period = cfg[i] & ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
+	for (int i = 0; i < voice.NUM_MODS; i++) voice.mods[i].float_period = cfg[voice.NUM_OSCS + i] & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
+	// Disable all sweeps for now
+	for (int i = 0; i < voice.NUM_SWEEPS; i++) voice.sweeps[i].float_period = ((1 << (OCT_BITS + SWEEP_PERIOD_BITS - 1)) - 1);
+}
+
 void run_model() {
 	VoiceModel voice;
 	voice.init(OCT_BITS, OSC_PERIOD_BITS, MOD_PERIOD_BITS, SWEEP_PERIOD_BITS, WAVE_BITS, LEAST_SHR, OUTPUT_BITS, LOG2_SWEEP_UPDATE_PERIOD, SWEEP_LOG2_STEP);
 	voice.reset();
+
+	int cfg[CFG_WORDS];
+	memset(cfg, 0, sizeof(cfg));
+	set_cfg(voice, cfg);
 
 	voice.update(voice.NUM_FSTATES);
 	voice.state = 0;
@@ -89,15 +119,30 @@ void run_model() {
 	output_change_line(fout, v, v, true);
 
 	PairVector v0;
-	for (int i = 0; i < 10; i++) {
-		for (int state = 0; state < voice.NUM_STATES; state++) {
-			voice.update(state);
-			voice.state = state == voice.NUM_STATES - 1 ? 0 : state + 1;
 
-			v0 = v;
-			v.clear();
-			sample_voice(v, voice);
-			output_change_line(fout, v, v0);
+	for (int j = 0; j < num_cfgs_to_try; j++) {
+		bool randomize = true;
+		for (int i = 0; i < num_samples_per_cfg; i++) {
+			for (int state = 0; state < voice.NUM_STATES; state++) {
+				bool rand_active = randomize && state == voice.NUM_FSTATES;
+				if (rand_active) {
+					rand_cfg(cfg);
+					output_cfg_line(fout, cfg);
+				}
+
+				voice.update(state);
+				voice.state = state == voice.NUM_STATES - 1 ? 0 : state + 1;
+
+				v0 = v;
+				v.clear();
+				sample_voice(v, voice);
+				output_change_line(fout, v, v0);
+
+				if (rand_active) {
+					set_cfg(voice, cfg);
+					randomize = false;
+				}
+			}
 		}
 	}
 
