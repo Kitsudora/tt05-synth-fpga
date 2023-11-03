@@ -11,25 +11,30 @@ int VoiceModel::update(int state) {
 	oct_enables = (((oct_counter + 1) & ~oct_counter) << 1) + 1;
 
 	const int i = state;
+	this->state = state;
 
 	// Filter update
 	// -------------
 	if (state < NUM_FSTATES) {
-		int nf[NUM_MODS];
+		int nfs[NUM_MODS];
 		for (int j = 0; j < NUM_MODS; j++) {
-			nf[j] = mods[j].get_oct() + 1 - mod_trigger[j];
-			if (nf[j] >= (1 << OCT_BITS)) nf[j] = (1 << OCT_BITS) - 1;
+			nfs[j] = mods[j].get_oct() + 1 - mod_trigger[j];
+			if (nfs[j] >= (1 << OCT_BITS)) nfs[j] = (1 << OCT_BITS) - 1;
 		}
 
 		int saw_index = state & 1; // Assuming two oscillators
-		int saw_signed = saw[saw_index] - (1 << (WAVE_BITS));
+		int saw_signed = saw[saw_index] - (1 << (WAVE_BITS - 1));
 		int saw_signed_shifted = (saw_signed << FEED_SHL) + (1 << (FEED_SHL - 1));
 
 		switch (state) {
-			case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + (saw_signed_shifted >> nf[VOL_INDEX]), STATE_BITS); break;
-			case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nf[DAMP_INDEX])), STATE_BITS); break;
-			case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nf[CUTOFF_INDEX])), STATE_BITS); break;
-			case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nf[CUTOFF_INDEX])), STATE_BITS); break;
+			//case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + (saw_signed_shifted >> nfs[VOL_INDEX]), STATE_BITS); break;
+			//case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nfs[DAMP_INDEX])), STATE_BITS); break;
+			//case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
+			//case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
+			case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), STATE_BITS); break;
+			case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR))  >> (nf = nfs[DAMP_INDEX])), STATE_BITS); break;
+			case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src =  (v >> LEAST_SHR))  >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
+			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR))  >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
 		}
 	}
 

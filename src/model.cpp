@@ -32,12 +32,17 @@ void sample_counter(PairVector &v, const std::string &name, CounterModel &c) {
 void sample_voice(PairVector &v, VoiceModel &voice) {
 	int i;
 	sample(v, "out", voice.out);
+	sample(v, "state", voice.state);
+	sample(v, "oct_counter", voice.oct_counter);
+	sample(v, "oct_enables", voice.oct_enables);
 	for (int i = 0; i < voice.NUM_OSCS; i++) {
 		std::string n = "osc" + std::to_string(i);
 		sample_counter(v, n, voice.oscs[i]);
 		sample(v, n + ".saw", voice.saw[i]);
 	}
 	for (int i = 0; i < voice.NUM_MODS; i++) sample_counter(v, "mod" + std::to_string(i), voice.mods[i]);
+	sample(v, "shifter_src", voice.shifter_src);
+	sample(v, "nf", voice.nf);
 	sample(v, "y", voice.y);
 	sample(v, "v", voice.v);
 }
@@ -67,6 +72,7 @@ void run_model() {
 	voice.reset();
 
 	voice.update(voice.NUM_FSTATES);
+	voice.state = 0;
 
 	PairVector v;
 	v.clear();
@@ -86,6 +92,7 @@ void run_model() {
 	for (int i = 0; i < 10; i++) {
 		for (int state = 0; state < voice.NUM_STATES; state++) {
 			voice.update(state);
+			voice.state = state == voice.NUM_STATES - 1 ? 0 : state + 1;
 
 			v0 = v;
 			v.clear();

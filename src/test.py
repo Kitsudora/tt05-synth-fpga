@@ -61,10 +61,28 @@ async def test_waveform(dut):
 NUM_OSCS = 2
 NUM_MODS = 3
 
-def sample(v, x): v.append(int(x.value))
+OCT_BITS = 4
+DIVIDER_BITS = 18
+OSC_PERIOD_BITS = 10
+MOD_PERIOD_BITS = 6
+WAVE_BITS = 2
+LEAST_SHR = 3
+
+EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1
+FEED_SHL = (1 << OCT_BITS) - 1
+STATE_BITS = WAVE_BITS + EXTRA_BITS
+SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
+
+def sample(v, x, nbits=64):
+	value = int(x.value)
+	if value >= 1 << (nbits-1): value -= 1 << nbits
+	v.append(value)
 
 def sample_voice(v, voice):
 	sample(v, voice.y_out)
+	sample(v, voice.state)
+	sample(v, voice.oct_counter)
+	sample(v, voice.oct_enables)
 	for i in range(NUM_OSCS):
 		sample(v, voice.cfg[i])
 		sample(v, voice.saw_counter_state[i])
@@ -72,8 +90,10 @@ def sample_voice(v, voice):
 	for i in range(NUM_MODS):
 		sample(v, voice.cfg[i + NUM_OSCS])
 		sample(v, voice.mod_counter_state[i])
-	sample(v, voice.y)
-	sample(v, voice.v)
+	sample(v, voice.shifter_src, SHIFTER_BITS)
+	sample(v, voice.nf)
+	sample(v, voice.y, STATE_BITS)
+	sample(v, voice.v, STATE_BITS)
 
 @cocotb.test()
 async def test_compare(dut):
@@ -113,7 +133,7 @@ async def test_compare(dut):
 			ignore.add(rev_names["out"])
 
 			await ClockCycles(dut.clk, 1)
-			line_number = 0
+			line_number = 1
 			num_fails = 0
 			while True:
 				line_number += 1
@@ -138,7 +158,7 @@ async def test_compare(dut):
 						print()
 						print("Mismatch on line", line_number)
 						for (i, value) in enumerate(v):
-							print(value == states[i], "\t", names[i], ":\t", states[i], ",\t", value)
+							print(value == states[i], "\t", names[i], ":\tc: ", states[i], ",\tv:", value)
 
 					assert num_fails < 3
 

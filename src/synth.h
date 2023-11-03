@@ -63,6 +63,9 @@ struct VoiceModel {
 	int y, v;
 
 	int out;
+	int state;
+	int shifter_src;
+	int nf;
 
 	VoiceModel() {}
 	void init(int OCT_BITS, int OSC_PERIOD_BITS, int MOD_PERIOD_BITS, int SWEEP_PERIOD_BITS, int WAVE_BITS, int LEAST_SHR, int OUTPUT_BITS, int LOG2_SWEEP_UPDATE_PERIOD, int SWEEP_LOG2_STEP) {
@@ -88,7 +91,7 @@ struct VoiceModel {
 
 		y = v = 0;
 
-		out = -1; // Don't check until after the first update.
+		out = state = shifter_src = nf = -1; // Don't check until after the first update.
 	}
 
 	int saturate(int x, int BITS) { return std::max(std::min(x, (1 << (BITS - 1)) - 1), -(1 << (BITS - 1))); }
