@@ -35,18 +35,25 @@ async def test_waveform(dut):
 		preserved = False
 
 	if preserved:
-		#dut.dut.cfg[0].value = 256;
-		#dut.dut.cfg[1].value = 256;
-		dut.dut.cfg[0].value = dut.dut.cfg[1].value = 512;
-		#dut.dut.cfg[2+0].value = 1 << 5;
-		#dut.dut.cfg[2+0].value = 1 << 4;
-		#dut.dut.cfg[2+1].value = 3 << 5;
-		dut.dut.cfg[2+2].value = 2 << 5;
+		#dut.dut.cfg[0].value = 256
+		#dut.dut.cfg[1].value = 256
+		#dut.dut.cfg[0].value = dut.dut.cfg[1].value = 256
+		#dut.dut.cfg[0].value = dut.dut.cfg[1].value = 512
+		#dut.dut.cfg[2+0].value = 1 << 5
+		#dut.dut.cfg[2+0].value = 1 << 4
+		#dut.dut.cfg[2+1].value = 3 << 5
+		dut.dut.cfg[2+2].value = 2 << 5
 
-		dut.dut.cfg[5] = 0;
-		#dut.dut.cfg[5] = 0x8080;
+		dut.dut.cfg[5].value = dut.dut.cfg[6].value = dut.dut.cfg[7].value = 0xffff
 
-		#dut.dut.y = -1 << 19;
+		#dut.dut.cfg[5].value = 0
+		#dut.dut.cfg[5].value = 0x8000
+		#dut.dut.cfg[5].value = 0x8080
+		#dut.dut.cfg[6].value = 0xff00
+		dut.dut.cfg[6].value = 0x00ff
+		#dut.dut.cfg[7].value = 0xff80
+
+		#dut.dut.y = -1 << 19
 		await ClockCycles(dut.clk, 8)
 		with open("tb-data.txt", "w") as file:
 			file.write("data = [")
@@ -57,6 +64,8 @@ async def test_waveform(dut):
 				file.write(str(0 + dut.dut.y.value) + " ")
 				file.write(str(0 + dut.dut.v.value) + " ")
 				file.write(str(0 + dut.dut.uo_out.value) + " ")
+				file.write(str(0 + dut.dut.cfg[0].value) + " ")
+				file.write(str(0 + dut.dut.cfg[1].value) + " ")
 				file.write(";")
 				await ClockCycles(dut.clk, 8)
 			file.write("]")
