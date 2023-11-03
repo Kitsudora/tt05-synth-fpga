@@ -85,7 +85,7 @@ module tt_um_toivoh_synth #(
 			assign cfg8[2*i+1] = cfg[i][15:8];
 			always @(posedge clk) begin
 				if (reset) begin
-					cfg[i] <= '0;
+					cfg[i] <= (i < NUM_OSCS + NUM_MODS) ? '0 : '1; // Initialize sweeps with all ones to disable them. Todo: disable all.
 				end else if (i == cfg_w_addr) begin
 					if (cfg_we[0]) cfg[i][7:0]  <= cfg_w_data[7:0];
 					if (cfg_we[1]) cfg[i][15:8] <= cfg_w_data[15:8];
@@ -304,6 +304,10 @@ module tt_um_toivoh_synth #(
 	wire sweep_max = sweep_max0 & (sweep_max1 | !sweep_osc);
 	wire allow_sweep = curr_sweep_down ? !sweep_min : !sweep_max;
 	wire do_sweep = sweep_trigger & allow_sweep;
+
+	assign cfg_override_we = do_sweep;
+	assign cfg_override_wdata = next_sweep_cfg;
+	assign cfg_override_w_addr = sweep_index;
 
 	// State variable filter
 	// =====================

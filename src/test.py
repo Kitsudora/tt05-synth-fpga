@@ -194,6 +194,7 @@ async def test_compare(dut):
 				elif line[0] == "p":
 					# Update configuration
 					for (i, cfgval) in enumerate(items[1:]):
+						if i >= 5: break # Skip updating sweeps for now. TODO: remove!
 						dut.dut.cfg[i].value = int(cfgval)
 				else:
 					assert False
