@@ -85,7 +85,8 @@ module tt_um_toivoh_synth #(
 			assign cfg8[2*i+1] = cfg[i][15:8];
 			always @(posedge clk) begin
 				if (reset) begin
-					cfg[i] <= (i < NUM_OSCS + NUM_MODS) ? '0 : '1; // Initialize sweeps with all ones to disable them. Todo: disable all.
+					cfg[i] <= '0;
+					//cfg[i] <= (i < NUM_OSCS + NUM_MODS) ? '0 : '1; // Initialize sweeps with all ones to disable them. Todo: disable all.
 				end else if (i == cfg_w_addr) begin
 					if (cfg_we[0]) cfg[i][7:0]  <= cfg_w_data[7:0];
 					if (cfg_we[1]) cfg[i][15:8] <= cfg_w_data[15:8];
@@ -297,7 +298,7 @@ module tt_um_toivoh_synth #(
 	wire sweep_osc = state < NUM_OSCS;
 	wire curr_sweep_down = sweep_down[sweep_index];
 	wire [OCT_BITS+OSC_PERIOD_BITS-2:0] curr_sweep_cfg = cfg[sweep_index][OCT_BITS+OSC_PERIOD_BITS-2:0];
-	wire [OCT_BITS+OSC_PERIOD_BITS-2:0] next_sweep_cfg = curr_sweep_cfg + {{(OCT_BITS+OSC_PERIOD_BITS-3){curr_sweep_down}}, 1'b1};
+	wire [OCT_BITS+OSC_PERIOD_BITS-2:0] next_sweep_cfg = curr_sweep_cfg + (curr_sweep_down ? -1 : 1);
 	wire sweep_min = curr_sweep_cfg == '0;
 	wire sweep_max0 = curr_sweep_cfg[OCT_BITS+MOD_PERIOD_BITS-2:0] == '1;
 	wire sweep_max1 = curr_sweep_cfg[OCT_BITS+OSC_PERIOD_BITS-2:OCT_BITS+MOD_PERIOD_BITS-1] == '1;
