@@ -4,6 +4,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
 
 waveform_test = True
 compare_test = True
+#compare_test = False
 
 @cocotb.test()
 async def test_waveform(dut):
@@ -38,9 +39,13 @@ async def test_waveform(dut):
 		#dut.dut.cfg[1].value = 256;
 		dut.dut.cfg[0].value = dut.dut.cfg[1].value = 512;
 		#dut.dut.cfg[2+0].value = 1 << 5;
-		dut.dut.cfg[2+0].value = 1 << 4;
-		dut.dut.cfg[2+1].value = 3 << 5;
+		#dut.dut.cfg[2+0].value = 1 << 4;
+		#dut.dut.cfg[2+1].value = 3 << 5;
 		dut.dut.cfg[2+2].value = 2 << 5;
+
+		dut.dut.cfg[5] = 0;
+		#dut.dut.cfg[5] = 0x8080;
+
 		#dut.dut.y = -1 << 19;
 		await ClockCycles(dut.clk, 8)
 		with open("tb-data.txt", "w") as file:
@@ -60,6 +65,7 @@ async def test_waveform(dut):
 
 NUM_OSCS = 2
 NUM_MODS = 3
+NUM_SWEEPS = 5
 
 OCT_BITS = 4
 DIVIDER_BITS = 18
@@ -75,11 +81,13 @@ SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
 
 NUM_FSTATES = 5
 
+def sample0(v, value, nbits=64):
+	if value >= 1 << (nbits-1): value -= 1 << nbits
+	v.append(value)
+
 def sample(v, x, nbits=64, keep=True):
 	if keep:
-		value = int(x.value)
-		if value >= 1 << (nbits-1): value -= 1 << nbits
-		v.append(value)
+		sample0(v, int(x.value), nbits)
 	else:
 		v.append(-1)
 
@@ -100,6 +108,9 @@ def sample_voice(v, voice):
 	for i in range(NUM_MODS):
 		sample(v, voice.cfg[i + NUM_OSCS])
 		sample(v, voice.mod_counter_state[i])
+	for i in range(NUM_SWEEPS):
+		sample0(v, voice.cfg8[i + 2*(NUM_OSCS + NUM_MODS)].value & 127) # exclude the sign bit
+		sample(v, voice.sweep_counter_state[i])
 	sample(v, voice.shifter_src, SHIFTER_BITS, full_state)
 	sample(v, voice.nf, 64, full_state)
 	sample(v, voice.y, STATE_BITS)
@@ -107,7 +118,7 @@ def sample_voice(v, voice):
 
 @cocotb.test()
 async def test_compare(dut):
-	if not waveform_test: return
+	if not compare_test: return
 	dut._log.info("start")
 	clock = Clock(dut.clk, 2, units="us")
 	cocotb.start_soon(clock.start())
@@ -185,7 +196,7 @@ async def test_compare(dut):
 						print()
 						print("Mismatch on line", line_number)
 						for (i, value) in enumerate(v):
-							print(value == states[i], "\t", names[i], ":\tc: ", states[i], ",\tv:", value)
+							print(value == states[i], "\t", i, "\t", names[i], ":\tc: ", states[i], ",\tv:", value, sep="")
 
 					assert num_fails < 3
 
@@ -194,7 +205,6 @@ async def test_compare(dut):
 				elif line[0] == "p":
 					# Update configuration
 					for (i, cfgval) in enumerate(items[1:]):
-						if i >= 5: break # Skip updating sweeps for now. TODO: remove!
 						dut.dut.cfg[i].value = int(cfgval)
 				else:
 					assert False

@@ -9,13 +9,13 @@
 const int OCT_BITS = 4;
 const int OSC_PERIOD_BITS = 10;
 const int MOD_PERIOD_BITS = 6;
-const int SWEEP_PERIOD_BITS = 10;
+const int SWEEP_PERIOD_BITS = 4;
 const int WAVE_BITS = 2;
 const int LEAST_SHR = 3;
 const int OUTPUT_BITS = 8;
 
-const int LOG2_SWEEP_UPDATE_PERIOD = 0; // 3;
-const int SWEEP_LOG2_STEP = 4; // <= SWEEP_PERIOD_BITS - 1
+const int LOG2_SWEEP_UPDATE_PERIOD = 2;
+const int SWEEP_LOG2_STEP = 0; // <= SWEEP_PERIOD_BITS - 1
 
 const int CFG_WORDS = 8;
 
@@ -32,7 +32,7 @@ void sample(PairVector &v, const std::string &name, int x) {
 
 void sample_counter(PairVector &v, const std::string &name, CounterModel &c) {
 	sample(v, name + ".float_period", c.float_period);
-	sample(v, name + "counter", c.counter);
+	sample(v, name + ".counter", c.counter);
 }
 
 void sample_voice(PairVector &v, VoiceModel &voice) {
@@ -47,6 +47,7 @@ void sample_voice(PairVector &v, VoiceModel &voice) {
 		sample(v, n + ".saw", voice.saw[i]);
 	}
 	for (int i = 0; i < voice.NUM_MODS; i++) sample_counter(v, "mod" + std::to_string(i), voice.mods[i]);
+	for (int i = 0; i < voice.NUM_SWEEPS; i++) sample_counter(v, "sweep" + std::to_string(i), voice.sweeps[i]);
 	sample(v, "shifter_src", voice.shifter_src);
 	sample(v, "nf", voice.nf);
 	sample(v, "y", voice.y);
@@ -72,24 +73,28 @@ void output_change_line(std::ofstream &fout, const PairVector &v, const PairVect
 	fout << "\n";
 }
 
-void output_cfg_line(std::ofstream &fout, const int cfg[]) {
+void output_cfg_line(std::ofstream &fout, const uint16_t cfg[]) {
 	fout << "p";
 	for (int i = 0; i < CFG_WORDS; i++) fout << " " << cfg[i];
 	fout << "\n";
 }
 
-void rand_cfg(int cfg[]) {
+void rand_cfg(uint16_t cfg[]) {
 	for (int i = 0; i < CFG_WORDS; i++) cfg[i] = rand() & 0xffff;
 
 	for (int i = 0; i < VoiceModel::NUM_OSCS; i++) cfg[i] = rand() & ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
 	for (int i = 0; i < VoiceModel::NUM_MODS; i++) cfg[VoiceModel::NUM_OSCS + i] = rand() & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
 }
 
-void set_cfg(VoiceModel &voice, int cfg[]) {
+void set_cfg(VoiceModel &voice, const uint16_t cfg[]) {
 	for (int i = 0; i < voice.NUM_OSCS; i++) voice.oscs[i].float_period = cfg[i] & ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
 	for (int i = 0; i < voice.NUM_MODS; i++) voice.mods[i].float_period = cfg[voice.NUM_OSCS + i] & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
-	// Disable all sweeps for now
-	for (int i = 0; i < voice.NUM_SWEEPS; i++) voice.sweeps[i].float_period = ((1 << (OCT_BITS + SWEEP_PERIOD_BITS - 1)) - 1);
+	uint8_t *cfg8 = (uint8_t *)cfg;
+	for (int i = 0; i < voice.NUM_SWEEPS; i++) {
+		int c = cfg8[2*(voice.NUM_OSCS + voice.NUM_MODS) + i];
+		voice.sweeps[i].float_period = c & ((1 << (OCT_BITS + SWEEP_PERIOD_BITS - 1)) - 1);
+		voice.sweep_down[i] = (c>>7) != 0;
+	}
 }
 
 void run_model() {
@@ -97,7 +102,7 @@ void run_model() {
 	voice.init(OCT_BITS, OSC_PERIOD_BITS, MOD_PERIOD_BITS, SWEEP_PERIOD_BITS, WAVE_BITS, LEAST_SHR, OUTPUT_BITS, LOG2_SWEEP_UPDATE_PERIOD, SWEEP_LOG2_STEP);
 	voice.reset();
 
-	int cfg[CFG_WORDS];
+	uint16_t cfg[CFG_WORDS];
 	memset(cfg, 0, sizeof(cfg));
 	set_cfg(voice, cfg);
 
