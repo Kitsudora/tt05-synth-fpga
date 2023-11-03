@@ -155,7 +155,7 @@ async def test_compare(dut):
 			last_v = None
 			while True:
 				line_number += 1
-				if line_number % 1000 == 0: dut._log.info("line " + str(line_number))
+				if line_number % 10000 == 0: dut._log.info("line " + str(line_number))
 
 				line = f.readline().rstrip()
 				if line == "": break

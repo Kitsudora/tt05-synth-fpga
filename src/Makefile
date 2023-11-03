@@ -1,3 +1,5 @@
+all: model.data
+
 # Makefile
 # See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
@@ -38,3 +40,6 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 
 model: model.cpp synth.cpp synth.h
+
+model.data: model
+	./model
