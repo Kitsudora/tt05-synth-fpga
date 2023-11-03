@@ -141,8 +141,11 @@ async def test_compare(dut):
 
 			ignore = set()
 			ignore.add(rev_names["out"])
+			oct_enables_index = rev_names["oct_enables"]
+			ignore.add(oct_enables_index)
 
 			delay = set()
+			delay.add(rev_names["oct_enables"])
 			delay.add(rev_names["shifter_src"])
 			delay.add(rev_names["nf"])
 
@@ -184,6 +187,7 @@ async def test_compare(dut):
 
 					assert num_fails < 3
 
+					if oct_enables_index in ignore: ignore.remove(oct_enables_index)
 					await ClockCycles(dut.clk, 1)
 
 			assert num_fails == 0
