@@ -21,9 +21,11 @@ endmodule
 
 module tt_um_toivoh_synth #(
 		parameter OCT_BITS = 4, // 8 octaves is enough for pitch, but the filters need to be able to sweep lower
-		parameter DIVIDER_BITS = 18, // 14 for the pitch, 4 extra for the sweeps
+		parameter DIVIDER_BITS = 16, // 14 for the pitch, 2 extra for the sweeps
 		parameter OSC_PERIOD_BITS = 10,
 		parameter MOD_PERIOD_BITS = 6,
+		parameter SWEEP_PERIOD_BITS = 4,
+		parameter LOG2_SWEEP_UPDATE_PERIOD = 2,
 		parameter WAVE_BITS = 2,
 		parameter LEAST_SHR = 3
 	) (
@@ -48,10 +50,14 @@ module tt_um_toivoh_synth #(
 	localparam DAMP_INDEX = 1;
 	localparam VOL_INDEX = 2;
 
+	localparam CEIL_LOG2_NUM_SWEEPS = 3;
+	localparam NUM_SWEEPS = NUM_OSCS + NUM_MODS;
+
 	localparam CEIL_LOG2_CFG_WORDS = 3;
 	localparam CFG_WORDS = 8;
 	localparam OSC_PERIOD_BASE = 0;
 	localparam MOD_PERIOD_BASE = NUM_OSCS;
+	localparam SWEEP_PERIOD_BASE = MOD_PERIOD_BASE + NUM_MODS;
 
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
@@ -70,9 +76,13 @@ module tt_um_toivoh_synth #(
 	wire [15:0] cfg_w_data;
 	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_w_addr;
 	reg [15:0] cfg[CFG_WORDS];
+	wire [15:0] period_cfg[NUM_SWEEPS]; // Restricted to maybe avoid some multiplexers when reading from it
+	wire [7:0] cfg8[CFG_WORDS*2];
 
 	generate
-		for (i=0; i < CFG_WORDS; i++) begin
+		for (i = 0; i < CFG_WORDS; i++) begin
+			assign cfg8[2*i  ] = cfg[i][ 7:0];
+			assign cfg8[2*i+1] = cfg[i][15:8];
 			always @(posedge clk) begin
 				if (reset) begin
 					cfg[i] <= '0;
@@ -82,6 +92,8 @@ module tt_um_toivoh_synth #(
 				end
 			end
 		end
+		for (i = 0; i < NUM_OSCS; i++)                 assign period_cfg[i] = cfg[i][OCT_BITS+OSC_PERIOD_BITS-2:0];
+		for (i = NUM_OSCS; i < NUM_OSCS+NUM_MODS; i++) assign period_cfg[i] = cfg[i][OCT_BITS+MOD_PERIOD_BITS-2:0];
 	endgenerate
 
 
@@ -96,24 +108,28 @@ module tt_um_toivoh_synth #(
 	reg [1:0] strobe_sync; // synchronize strobe to clk
 	wire cfg_in_strobe = strobe_sync[0];
 
+	wire cfg_override_we;
+	wire [15:0] cfg_override_wdata;
+	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_override_w_addr;
+
 	reg cfg_in_prev_strobe;
 	always @(posedge clk) begin
 		strobe_sync <= {cfg_in_strobe_raw, strobe_sync[1:1]};
 
+		// Don't update cfg_in_prev_strobe if there is a write override, so that we get a new chance to write next cycle.
 		if (reset) cfg_in_prev_strobe <= 1'b0;
-		else cfg_in_prev_strobe <= strobe_sync[0];
+		else if (!cfg_override_we) cfg_in_prev_strobe <= strobe_sync[0];
 	end
 
 	wire cfg_in_strobed = cfg_in_strobe & ~cfg_in_prev_strobe;
-	assign cfg_we[0] = cfg_in_strobed & ~cfg_in_addr0;
-	assign cfg_we[1] = cfg_in_strobed &  cfg_in_addr0;
-	assign cfg_w_data = {cfg_in_data, cfg_in_data};
-	assign cfg_w_addr = cfg_in_addr;
+	assign cfg_we[0] = (cfg_in_strobed & ~cfg_in_addr0) | cfg_override_we;
+	assign cfg_we[1] = (cfg_in_strobed &  cfg_in_addr0) | cfg_override_we;
+	assign cfg_w_data = cfg_override_we ? cfg_override_wdata : {cfg_in_data, cfg_in_data};
+	assign cfg_w_addr = cfg_override_we ? cfg_override_w_addr : cfg_in_addr;
 
 
 	// State machine
 	// =============
-
 	reg [2:0] state;
 	wire [3:0] next_state = state + 1;
 
@@ -163,7 +179,7 @@ module tt_um_toivoh_synth #(
 	);
 
 	generate
-		for (i=0; i < NUM_OSCS; i++) begin : osc
+		for (i = 0; i < NUM_OSCS; i++) begin : osc
 			assign saw_period[i] = {1'b1, cfg[OSC_PERIOD_BASE+i][OSC_PERIOD_BITS-2:0]};
 			assign saw_oct[i] = cfg[OSC_PERIOD_BASE+i][OSC_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 
@@ -227,6 +243,67 @@ module tt_um_toivoh_synth #(
 		end
 	endgenerate
 
+
+	// Sweep counters
+	// ==============
+	wire update_sweep = state < NUM_SWEEPS;
+	wire [CEIL_LOG2_NUM_SWEEPS-1:0] sweep_index = state[CEIL_LOG2_NUM_SWEEPS-1:0];
+
+	wire [SWEEP_PERIOD_BITS-1:0] sweep_period[NUM_SWEEPS];
+	wire [OCT_BITS-1:0] sweep_oct[NUM_SWEEPS];
+	wire sweep_down[NUM_SWEEPS];
+
+	wire [OCT_BITS-1:0] curr_sweep_oct = sweep_oct[sweep_index];
+	wire [2**OCT_BITS-1:0] sweep_oct_enables = {1'b0, oct_enables[2**OCT_BITS-2+LOG2_SWEEP_UPDATE_PERIOD -: 2**OCT_BITS-1]};
+	wire sweep_en = sweep_oct_enables[curr_sweep_oct];
+	wire sweep_trigger;
+
+	reg [SWEEP_PERIOD_BITS-1:0] sweep_counter_state[NUM_SWEEPS];
+	wire [SWEEP_PERIOD_BITS-1:0] sweep_counter_next_state;
+	wire sweep_counter_state_we;
+
+	generate
+		for (i = 0; i < NUM_SWEEPS; i++) begin : sweep_counters
+			assign sweep_period[i] = {2'b01, cfg8[2*SWEEP_PERIOD_BASE+i][SWEEP_PERIOD_BITS-2 -: SWEEP_PERIOD_BITS-1]};
+			assign sweep_oct[i]    = cfg8[2*SWEEP_PERIOD_BASE+i][SWEEP_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+			assign sweep_down[i]   = cfg8[2*SWEEP_PERIOD_BASE+i][7];
+		end
+	endgenerate
+
+	wire [SWEEP_PERIOD_BITS-1:0] curr_sweep_period = sweep_period[sweep_index];
+	Counter #(.PERIOD_BITS(SWEEP_PERIOD_BITS), .LOG2_STEP(0)) sweep_counter(
+		.period0('0), .period1(curr_sweep_period), .enable(sweep_en & update_sweep),
+		.trigger(sweep_trigger),
+
+		.counter(sweep_counter_state[sweep_index]), .counter_we(sweep_counter_state_we), .next_counter(sweep_counter_next_state)
+	);
+
+	generate
+		for (i = 0; i < NUM_SWEEPS; i++) begin : sweep_counter_update
+			always @(posedge clk) begin
+				if (reset) begin
+					sweep_counter_state[i] <= 0; // TODO: way to reset that rhymes better with non-reset-case?
+				end else begin
+					if (i == sweep_index) begin
+						if (sweep_counter_state_we) sweep_counter_state[i] <= sweep_counter_next_state;
+					end
+				end
+			end
+		end
+	endgenerate
+
+	// Update cfg when a sweep counter triggers
+	// ----------------------------------------
+	wire sweep_osc = state < NUM_OSCS;
+	wire curr_sweep_down = sweep_down[sweep_index];
+	wire [OCT_BITS+OSC_PERIOD_BITS-2:0] curr_sweep_cfg = cfg[sweep_index][OCT_BITS+OSC_PERIOD_BITS-2:0];
+	wire [OCT_BITS+OSC_PERIOD_BITS-2:0] next_sweep_cfg = curr_sweep_cfg + {{(OCT_BITS+OSC_PERIOD_BITS-3){curr_sweep_down}}, 1'b1};
+	wire sweep_min = curr_sweep_cfg == '0;
+	wire sweep_max0 = curr_sweep_cfg[OCT_BITS+MOD_PERIOD_BITS-2:0] == '1;
+	wire sweep_max1 = curr_sweep_cfg[OCT_BITS+OSC_PERIOD_BITS-2:OCT_BITS+MOD_PERIOD_BITS-1] == '1;
+	wire sweep_max = sweep_max0 & (sweep_max1 | !sweep_osc);
+	wire allow_sweep = curr_sweep_down ? !sweep_min : !sweep_max;
+	wire do_sweep = sweep_trigger & allow_sweep;
 
 	// State variable filter
 	// =====================
