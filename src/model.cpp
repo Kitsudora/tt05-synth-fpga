@@ -82,8 +82,16 @@ void output_cfg_line(std::ofstream &fout, const uint16_t cfg[]) {
 void rand_cfg(uint16_t cfg[]) {
 	for (int i = 0; i < CFG_WORDS; i++) cfg[i] = rand() & 0xffff;
 
-	for (int i = 0; i < VoiceModel::NUM_OSCS; i++) cfg[i] = rand() & ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
-	for (int i = 0; i < VoiceModel::NUM_MODS; i++) cfg[VoiceModel::NUM_OSCS + i] = rand() & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
+	if (rand() % 11 == 0) {
+		// Max frequency for cutoff and damp to damp the filter state once in a while
+		cfg[VoiceModel::CUTOFF_INDEX] = cfg[VoiceModel::DAMP_INDEX] = 0;
+	} else {
+		// A chance to set max/min period so that the sweeps have a chance to check saturation
+		if (rand() % 3 == 0) cfg[rand() % VoiceModel::NUM_SWEEPS] = (rand()&1) ? -1 : 0;
+	}
+
+	for (int i = 0; i < VoiceModel::NUM_OSCS; i++) cfg[i] &= ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
+	for (int i = 0; i < VoiceModel::NUM_MODS; i++) cfg[VoiceModel::NUM_OSCS + i] &= rand() & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
 }
 
 void set_cfg(VoiceModel &voice, const uint16_t cfg[]) {
