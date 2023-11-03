@@ -18,7 +18,7 @@ struct CounterModel {
 	void init(int period_bits, int log2_step, bool double_step) { PERIOD_BITS = period_bits; LOG2_STEP = log2_step; DOUBLE_STEP = double_step; }
 	void reset() { float_period = counter = 0; }
 
-	bool update() {	
+	bool update() {
 		int period0, period1;
 		int period = get_period();
 		if (DOUBLE_STEP) { period0 = period; period1 = period << 1; }
@@ -42,7 +42,7 @@ struct CounterModel {
 struct VoiceModel {
 	enum { NUM_OSCS = 2, NUM_MODS = 3 };
 	enum { NUM_SWEEPS = NUM_OSCS + NUM_MODS };
-	enum { CUTOFF_INDEX = 0, DAMP_INDEX = 1, VOL_INDEX = 2};
+	enum { CUTOFF_INDEX = 0, DAMP_INDEX = 1, VOL_INDEX = 2 };
 
 	enum { NUM_STATES = 8 };
 	enum { FSTATE_VOL0 = 0, FSTATE_VOL1, FSTATE_DAMP, FSTATE_CUTOFF_Y, FSTATE_CUTOFF_V, NUM_FSTATES };
@@ -98,4 +98,5 @@ struct VoiceModel {
 	//int saturate(int x, int BITS) { return std::max(std::min(x, (1 << (BITS - 1)) - 1), 1 - (1 << (BITS - 1))); }
 
 	int update(int state); // call with state going from 0 to NUM_STATES-1 for each sample.
+	int update() { for (int state = 0; state < NUM_STATES; state++) update(state); return out; }
 };
