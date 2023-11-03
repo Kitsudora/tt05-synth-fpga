@@ -19,6 +19,8 @@ const int SWEEP_LOG2_STEP = 0; // <= SWEEP_PERIOD_BITS - 1
 
 const int CFG_WORDS = 8;
 
+const int DIVIDER_BITS = 16;
+
 const int num_cfgs_to_try = 100;
 const int num_samples_per_cfg = 100;
 
@@ -39,8 +41,8 @@ void sample_voice(PairVector &v, VoiceModel &voice) {
 	int i;
 	sample(v, "out", voice.out);
 	sample(v, "state", voice.state);
-	sample(v, "oct_counter", voice.oct_counter);
-	sample(v, "oct_enables", voice.oct_enables);
+	sample(v, "oct_counter", voice.oct_counter & ((1 << (DIVIDER_BITS))-1));     // Hack: supress higher bits of oct_counter
+	sample(v, "oct_enables", voice.oct_enables & ((1 << (DIVIDER_BITS + 1))-1)); // and oct_enables; they hopefully shouldn't make a difference...
 	for (int i = 0; i < voice.NUM_OSCS; i++) {
 		std::string n = "osc" + std::to_string(i);
 		sample_counter(v, n, voice.oscs[i]);
