@@ -31,11 +31,11 @@ int VoiceModel::update(int state) {
 			//case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nfs[DAMP_INDEX])), STATE_BITS); break;
 			//case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
 			//case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
-			case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), STATE_BITS); break;
-			case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR)) >> (nf = nfs[DAMP_INDEX])), STATE_BITS); break;
-			case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src = (v >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
-			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
-			default: shifter_src = nf = -1; break;
+		case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), STATE_BITS); break;
+		case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR)) >> (nf = nfs[DAMP_INDEX])), STATE_BITS); break;
+		case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src = (v >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
+		case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
+		default: shifter_src = nf = -1; break;
 		}
 	}
 	else { shifter_src = nf = -1; }
@@ -58,7 +58,7 @@ int VoiceModel::update(int state) {
 	// -------------
 	if (i < NUM_SWEEPS) {
 		if (sweeps[i].update((oct_enables >> LOG2_SWEEP_UPDATE_PERIOD) & OCT_ENABLE_MASK)) {
-			int delta = sweep_up[i] ? 1 : -1;
+			int delta = sweep_down[i] ? -1 : 1;
 			CounterModel &c = i < NUM_OSCS ? oscs[i] : mods[i - NUM_OSCS];
 			c.float_period = std::min(std::max(c.float_period + delta, 0), (1 << (OCT_BITS + c.PERIOD_BITS - 1)) - 1);
 		}

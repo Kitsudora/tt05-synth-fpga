@@ -58,7 +58,7 @@ struct VoiceModel {
 
 	int saw[NUM_OSCS];
 	bool mod_trigger[NUM_MODS];
-	bool sweep_up[NUM_SWEEPS];
+	bool sweep_down[NUM_SWEEPS];
 
 	int y, v;
 
@@ -87,7 +87,7 @@ struct VoiceModel {
 
 		memset(&saw, 0, sizeof(saw));
 		memset(&mod_trigger, 0, sizeof(mod_trigger));
-		memset(&sweep_up, 0, sizeof(sweep_up));
+		memset(&sweep_down, 0, sizeof(sweep_down));
 
 		y = v = 0;
 
