@@ -264,7 +264,7 @@ module tt_um_toivoh_synth #(
 
 	generate
 		for (i = 0; i < NUM_SWEEPS; i++) begin : sweep_counters
-			assign sweep_period[i] = {2'b01, cfg8[2*SWEEP_PERIOD_BASE+i][SWEEP_PERIOD_BITS-2 -: SWEEP_PERIOD_BITS-1]};
+			assign sweep_period[i] = {1'b1, cfg8[2*SWEEP_PERIOD_BASE+i][SWEEP_PERIOD_BITS-2 -: SWEEP_PERIOD_BITS-1]};
 			assign sweep_oct[i]    = cfg8[2*SWEEP_PERIOD_BASE+i][SWEEP_PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 			assign sweep_down[i]   = cfg8[2*SWEEP_PERIOD_BASE+i][7];
 		end
@@ -306,7 +306,7 @@ module tt_um_toivoh_synth #(
 	wire do_sweep = sweep_trigger & allow_sweep;
 
 	assign cfg_override_we = do_sweep;
-	assign cfg_override_wdata = next_sweep_cfg;
+	assign cfg_override_wdata = {{(16-(OCT_BITS+OSC_PERIOD_BITS-1)){1'b0}}, next_sweep_cfg};
 	assign cfg_override_w_addr = sweep_index;
 
 	// State variable filter
