@@ -6,7 +6,7 @@ int VoiceModel::update(int state) {
 	const int STATE_BITS = WAVE_BITS + EXTRA_BITS;
 	const int SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
-	const int OCT_ENABLE_MASK = (1 << ((1 << OCT_BITS) - 2)) - 1; // To make highest octave number never trigger
+	const int OCT_ENABLE_MASK = (1 << ((1 << OCT_BITS) - 1)) - 1; // To make highest octave number never trigger
 
 	oct_enables = (((oct_counter + 1) & ~oct_counter) << 1) + 1;
 
