@@ -35,6 +35,7 @@ int VoiceModel::update(int state) {
 			case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR))  >> (nf = nfs[DAMP_INDEX])), STATE_BITS); break;
 			case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src =  (v >> LEAST_SHR))  >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
 			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR))  >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
+			default: shifter_src = nf = -1; break;
 		}
 	}
 
