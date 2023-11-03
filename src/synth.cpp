@@ -37,7 +37,7 @@ int VoiceModel::update(int state) {
 			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR))  >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
 			default: shifter_src = nf = -1; break;
 		}
-	}
+	} else { shifter_src = nf = -1; }
 
 	// Oscillator updates
 	// ------------------
