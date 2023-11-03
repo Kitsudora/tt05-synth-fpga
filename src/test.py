@@ -89,7 +89,7 @@ def sample_voice(v, voice):
 	full_prev_state = 0 <= prev_state < NUM_FSTATES
 	full_state = 0 <= state < NUM_FSTATES
 
-	sample(v, voice.y_out)
+	sample(v, voice.uo_out)
 	sample(v, voice.state)
 	sample(v, voice.oct_counter)
 	sample(v, voice.oct_enables)
@@ -140,7 +140,7 @@ async def test_compare(dut):
 			rev_names = {name: i for (i, name) in enumerate(names)}
 
 			ignore = set()
-			ignore.add(rev_names["out"])
+			#ignore.add(rev_names["out"])
 			oct_enables_index = rev_names["oct_enables"]
 			ignore.add(oct_enables_index)
 
