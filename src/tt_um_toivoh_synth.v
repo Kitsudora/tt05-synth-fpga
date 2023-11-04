@@ -177,6 +177,16 @@ module tt_um_toivoh_synth #(
 	end
 
 
+	// LFSR
+	// ====
+	reg [14:0] lfsr;
+
+	always @(posedge clk) begin
+		if (reset) lfsr <= '1;
+		else if (last_cycle_of_sample) lfsr <= {lfsr[13:0], lfsr[0] ^ lfsr[14]};
+	end
+
+
 	// Sawtooth oscillators
 	// ====================
 	wire update_saw = state < NUM_OSCS;
@@ -191,7 +201,7 @@ module tt_um_toivoh_synth #(
 	wire [OCT_BITS-1:0] saw_oct[NUM_OSCS];
 	reg [WAVE_BITS-1:0] saw[NUM_OSCS];
 	wire [WAVE_BITS-1:0] curr_saw = saw[saw_index];
-	wire [WAVE_BITS-1:0] next_saw = curr_saw + saw_trigger;
+	wire [WAVE_BITS-1:0] next_saw = (wf == WF_NOISE) ? {~lfsr[WAVE_BITS-1], lfsr[WAVE_BITS-2:0]} : (curr_saw + 1);
 
 	reg [OSC_PERIOD_BITS-1:0] saw_counter_state[NUM_OSCS];
 	wire [OSC_PERIOD_BITS-1:0] saw_counter_next_state;
@@ -214,7 +224,7 @@ module tt_um_toivoh_synth #(
 					saw[i] <= '0;
 				end else if (update_saw && saw_index == i) begin
 					if (saw_counter_state_we) saw_counter_state[i] <= saw_counter_next_state;
-					saw[i] <= next_saw;
+					if (saw_trigger) saw[i] <= next_saw;
 				end
 			end
 		end
@@ -336,6 +346,7 @@ module tt_um_toivoh_synth #(
 	assign cfg_override_we = do_sweep;
 	assign cfg_override_wdata = {{(16-(OCT_BITS+OSC_PERIOD_BITS-1)){1'b0}}, next_sweep_cfg};
 	assign cfg_override_w_addr = sweep_index;
+
 
 	// State variable filter
 	// =====================

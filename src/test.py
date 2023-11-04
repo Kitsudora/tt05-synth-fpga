@@ -91,6 +91,7 @@ async def test_waveform(dut):
 
 		#dut.dut.cfg[7].value = 0xf5ff # Square
 		#dut.dut.cfg[7].value = 0xf0ff # Pulse
+		#dut.dut.cfg[7].value = 0xf2ff # Noise + pulse
 
 		#dut.dut.y = -1 << 19
 		await ClockCycles(dut.clk, NUM_STATES)
