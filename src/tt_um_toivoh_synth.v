@@ -61,7 +61,7 @@ module tt_um_toivoh_synth #(
 
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
-	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
+	localparam FSTATE_BITS = WAVE_BITS + EXTRA_BITS;
 	localparam SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
 	wire reset = !rst_n;
@@ -321,12 +321,12 @@ module tt_um_toivoh_synth #(
 	localparam TARGET_V = 1;
 	localparam TARGET_NONE = 2;
 
-	reg signed [STATE_BITS-1:0] y;
-	reg signed [STATE_BITS-1:0] v;
+	reg signed [FSTATE_BITS-1:0] y;
+	reg signed [FSTATE_BITS-1:0] v;
 
 	// Not registers, but assigned in the case below:
-	reg signed [STATE_BITS-1:0] a_src;
-	wire a_sign = a_src[STATE_BITS-1];
+	reg signed [FSTATE_BITS-1:0] a_src;
+	wire a_sign = a_src[FSTATE_BITS-1];
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
 	reg [CEIL_LOG2_NUM_MODS-1:0] nf_index;
 	reg [1:0] filter_target;
@@ -343,19 +343,19 @@ module tt_um_toivoh_synth #(
 			FSTATE_DAMP: begin
 				filter_target = TARGET_V;
 				a_src = v;
-				shifter_src = ~v[STATE_BITS-1:LEAST_SHR]; // cheaper negation
+				shifter_src = ~v[FSTATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = DAMP_INDEX;
 			end
 			FSTATE_CUTOFF_Y: begin
 				filter_target = TARGET_Y;
 				a_src = y;
-				shifter_src = v[STATE_BITS-1:LEAST_SHR];
+				shifter_src = v[FSTATE_BITS-1:LEAST_SHR];
 				nf_index = CUTOFF_INDEX;
 			end
 			FSTATE_CUTOFF_V: begin
 				filter_target = TARGET_V;
 				a_src = v;
-				shifter_src = ~y[STATE_BITS-1:LEAST_SHR]; // cheaper negation
+				shifter_src = ~y[FSTATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = CUTOFF_INDEX;
 			end
 			default: begin
@@ -371,19 +371,19 @@ module tt_um_toivoh_synth #(
 	wire [OCT_BITS-1:0] nf = nf0[OCT_BITS] ? '1 : nf0[OCT_BITS-1:0]; // saturate nf
 
 	//wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
-	wire signed [STATE_BITS-1:0] b_src = shifter_src >>> nf; // use same size of a_src and b_src to avoid lint warning
-	wire b_sign = b_src[STATE_BITS-1];
-	//wire [STATE_BITS-1:0] next_filter_state = a_src + b_src;
+	wire signed [FSTATE_BITS-1:0] b_src = shifter_src >>> nf; // use same size of a_src and b_src to avoid lint warning
+	wire b_sign = b_src[FSTATE_BITS-1];
+	//wire [FSTATE_BITS-1:0] next_filter_state = a_src + b_src;
 
 	// Saturate filter output
 	// ----------------------
-	wire [STATE_BITS-1:0] filter_sum = a_src + b_src;
-	wire filter_sum_sign = filter_sum[STATE_BITS-1];
+	wire [FSTATE_BITS-1:0] filter_sum = a_src + b_src;
+	wire filter_sum_sign = filter_sum[FSTATE_BITS-1];
 	wire filter_max = ~a_sign & ~b_sign &  filter_sum_sign;
 	wire filter_min =  a_sign &  b_sign & ~filter_sum_sign;
 	wire filter_sat = filter_max | filter_min;
-	wire [STATE_BITS-1:0] filter_sat_value = {~filter_max, {(STATE_BITS-1){filter_max}}};
-	wire [STATE_BITS-1:0] next_filter_state = filter_sat ? filter_sat_value : filter_sum[STATE_BITS-1:0];
+	wire [FSTATE_BITS-1:0] filter_sat_value = {~filter_max, {(FSTATE_BITS-1){filter_max}}};
+	wire [FSTATE_BITS-1:0] next_filter_state = filter_sat ? filter_sat_value : filter_sum[FSTATE_BITS-1:0];
 
 	// Filter state update
 	// -------------------
@@ -400,7 +400,7 @@ module tt_um_toivoh_synth #(
 	// Output
 	// ======
 	//assign uo_out = saw[0];
-	wire [OUT_BITS-1:0] y_out = y[STATE_BITS-1 -: OUT_BITS];
+	wire [OUT_BITS-1:0] y_out = y[FSTATE_BITS-1 -: OUT_BITS];
 	assign uo_out = {~y_out[OUT_BITS-1], y_out[OUT_BITS-2:0]};
 
 	// Debug aids

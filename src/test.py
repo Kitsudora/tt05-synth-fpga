@@ -19,7 +19,7 @@ LEAST_SHR = 3
 
 EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1
 FEED_SHL = (1 << OCT_BITS) - 1
-STATE_BITS = WAVE_BITS + EXTRA_BITS
+FSTATE_BITS = WAVE_BITS + EXTRA_BITS
 SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
 
 NUM_FSTATES = 5
@@ -134,8 +134,8 @@ def sample_voice(v, voice):
 		sample(v, voice.sweep_counter_state[i])
 	sample(v, voice.shifter_src, SHIFTER_BITS, full_state)
 	sample(v, voice.nf, 64, full_state)
-	sample(v, voice.y, STATE_BITS)
-	sample(v, voice.v, STATE_BITS)
+	sample(v, voice.y, FSTATE_BITS)
+	sample(v, voice.v, FSTATE_BITS)
 
 @cocotb.test()
 async def test_compare(dut):

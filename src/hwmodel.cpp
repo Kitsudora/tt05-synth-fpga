@@ -3,7 +3,7 @@
 int VoiceModel::update(int state) {
 	const int EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	const int FEED_SHL = (1 << OCT_BITS) - 1;
-	const int STATE_BITS = WAVE_BITS + EXTRA_BITS;
+	const int FSTATE_BITS = WAVE_BITS + EXTRA_BITS;
 	const int SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
 	const int OCT_ENABLE_MASK = (1 << ((1 << OCT_BITS) - 1)) - 1; // To make highest octave number never trigger
@@ -27,15 +27,15 @@ int VoiceModel::update(int state) {
 		int saw_signed_shifted = (saw_signed << FEED_SHL) + (1 << (FEED_SHL - 1));
 
 		switch (state) {
-			//case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + (saw_signed_shifted >> nfs[VOL_INDEX]), STATE_BITS); break;
-			//case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nfs[DAMP_INDEX])), STATE_BITS); break;
-			//case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
-			//case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nfs[CUTOFF_INDEX])), STATE_BITS); break;
-		case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), STATE_BITS); break;
-		case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR)) >> (nf = nfs[DAMP_INDEX])), STATE_BITS); break;
-		case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src = (v >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
-		case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), STATE_BITS); break;
-		default: shifter_src = nf = -1; break;
+			//case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + (saw_signed_shifted >> nfs[VOL_INDEX]), FSTATE_BITS); break;
+			//case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nfs[DAMP_INDEX])), FSTATE_BITS); break;
+			//case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
+			//case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
+			case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), FSTATE_BITS); break;
+			case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR)) >> (nf = nfs[DAMP_INDEX])), FSTATE_BITS); break;
+			case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src = (v >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
+			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
+			default: shifter_src = nf = -1; break;
 		}
 	}
 	else { shifter_src = nf = -1; }
@@ -66,7 +66,7 @@ int VoiceModel::update(int state) {
 
 	if (state == NUM_STATES - 1) oct_counter += 1;
 
-	out = ((y + (1 << (STATE_BITS - 1))) >> (STATE_BITS - OUTPUT_BITS)) & ((1 << OUTPUT_BITS) - 1);
+	out = ((y + (1 << (FSTATE_BITS - 1))) >> (FSTATE_BITS - OUTPUT_BITS)) & ((1 << OUTPUT_BITS) - 1);
 	//out = saw[0] << (OUTPUT_BITS - WAVE_BITS) & ((1 << OUTPUT_BITS) - 1); // TODO: change back to regular output!
 	return out;
 }
