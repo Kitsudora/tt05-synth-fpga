@@ -70,6 +70,12 @@ module tt_um_toivoh_synth #(
 	localparam DITHER_BITS = SHIFTER_BITS - (STATE_BITS - LEAST_SHR);
 
 
+	localparam WF_PULSE = 0;
+	localparam WF_SQUARE = 1;
+	localparam WF_NOISE = 2;
+	localparam WF_SAW = 3;
+
+
 	wire reset = !rst_n;
 
 	genvar i;
@@ -348,6 +354,10 @@ module tt_um_toivoh_synth #(
 	localparam A_SEL_Y = 0;
 	localparam A_SEL_V = 1;
 
+	wire [1:0] wf = saw_index ? misc_cfg[3:2] : misc_cfg[1:0];
+	wire [WAVE_BITS:0] curr_wave = (wf == WF_SQUARE) ? {~curr_saw[WAVE_BITS-1], 2'b10} : {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1};
+	// curr_pulse = {curr_saw[WAVE_BITS -: 2] != 2'd3, 2'b11};
+
 	reg signed [FSTATE_BITS-1:0] y;
 	reg signed [FSTATE_BITS-1:0] v;
 
@@ -370,7 +380,7 @@ module tt_um_toivoh_synth #(
 				end
 				// curr_saw will depend on state[0]
 				//shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
-				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
+				shifter_src = {curr_wave, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
 				nf_index = VOL_INDEX;
 			end
 			FSTATE_DAMP: begin
