@@ -3,8 +3,8 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
 
 waveform_test = True
-compare_test = True
-#compare_test = False
+#compare_test = True
+compare_test = False
 
 NUM_OSCS = 2
 NUM_MODS = 3
@@ -90,7 +90,7 @@ async def test_waveform(dut):
 		#dut.dut.cfg[7].value = 0x3fff #Inject into y instead
 
 		#dut.dut.cfg[7].value = 0xf5ff # Square
-		#dut.dut.cfg[7].value = 0xf0ff # Pulse
+		dut.dut.cfg[7].value = 0xf0ff # Pulse
 		#dut.dut.cfg[7].value = 0xf2ff # Noise + pulse
 
 		#dut.dut.y = -1 << 19
