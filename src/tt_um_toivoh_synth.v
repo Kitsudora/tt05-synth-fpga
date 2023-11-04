@@ -39,7 +39,7 @@ module tt_um_toivoh_synth #(
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
-	localparam STATE_BITS = 3;
+	localparam STATE_BITS = 5;
 
 	localparam OUT_BITS = 8;
 
@@ -262,7 +262,10 @@ module tt_um_toivoh_synth #(
 	// Sweep counters
 	// ==============
 	wire update_sweep = state < NUM_SWEEPS;
-	wire [CEIL_LOG2_NUM_SWEEPS-1:0] sweep_index = state[CEIL_LOG2_NUM_SWEEPS-1:0];
+	
+	//wire [CEIL_LOG2_NUM_SWEEPS-1:0] sweep_index = state[CEIL_LOG2_NUM_SWEEPS-1:0];
+	// Workaround: The above line triggers an internal simulator assertion, so go with a too big sweep_index
+	wire [STATE_BITS-1:0] sweep_index = state;
 
 	wire [SWEEP_PERIOD_BITS-1:0] sweep_period[NUM_SWEEPS];
 	wire [OCT_BITS-1:0] sweep_oct[NUM_SWEEPS];

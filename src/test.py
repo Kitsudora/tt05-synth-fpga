@@ -25,6 +25,8 @@ SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
 NUM_FSTATES = 5
 CFG_WORDS = 8
 
+NUM_STATES = 32
+
 def init1(dut):
 	dut._log.info("start")
 	clock = Clock(dut.clk, 2, units="us")
@@ -86,7 +88,7 @@ async def test_waveform(dut):
 		#dut.dut.cfg[7].value = 0xff80
 
 		#dut.dut.y = -1 << 19
-		await ClockCycles(dut.clk, 8)
+		await ClockCycles(dut.clk, NUM_STATES)
 		with open("tb-data.txt", "w") as file:
 			with open("pwm-data.txt", "w") as pwmfile:
 				file.write("data = [")
@@ -102,14 +104,14 @@ async def test_waveform(dut):
 					file.write(str(0 + dut.dut.cfg[1].value) + " ")
 					file.write(";")
 
-					for j in range(8):
+					for j in range(NUM_STATES):
 						pwmfile.write(str(0 + dut.uio_out[6].value) + " ")
 						await ClockCycles(dut.clk, 1)
 
 				file.write("]")
 				pwmfile.write("]")
 	else:
-		ClockCycles(dut.clk, 2*period*8)
+		ClockCycles(dut.clk, 2*period*NUM_STATES)
 
 
 @cocotb.test()
