@@ -59,12 +59,12 @@ async def test_waveform(dut):
 	await ClockCycles(dut.clk, 10)
 	preserved = init2(dut)
 
-	for i in range(NUM_SWEEPS): dut.dut.cfg[i].value = 0
-
 	#period = (512 + 56) << 3;
 	period = 512;
 
 	if preserved:
+		for i in range(NUM_SWEEPS): dut.dut.cfg[i].value = 0
+
 		#dut.dut.cfg[0].value = 256
 		#dut.dut.cfg[1].value = 256
 		#dut.dut.cfg[0].value = dut.dut.cfg[1].value = 256
