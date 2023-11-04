@@ -245,11 +245,11 @@ async def test_write_cfg(dut):
 		if j >= CFG_WORDS: break
 
 		# Write low byte
-		dut.uio_in.value = 0xa5 # data
+		dut.ui_in.value = 0xa5 # data
 		cfg[j] = (cfg[j] & 0xff00) | 0xa5
-		dut.ui_in.value = 128 | 2*j # strobe | address
+		dut.uio_in.value = 128 | 2*j # strobe | address
 		await ClockCycles(dut.clk, 1)
-		dut.ui_in.value = 2*j # turn off strobe
+		dut.uio_in.value = 2*j # turn off strobe
 		await ClockCycles(dut.clk, 9)
 
 		i0 = 2*(j - NUM_SWEEPS) + 1
@@ -258,11 +258,11 @@ async def test_write_cfg(dut):
 			assert i < i0 or int(dut.dut.cfg[i].value) == c
 
 		# Write high byte
-		dut.uio_in.value = 0x5a # data
+		dut.ui_in.value = 0x5a # data
 		cfg[j] = (cfg[j] & 0xff) | 0x5a00
-		dut.ui_in.value = 128 | 2*j + 1 # strobe | address
+		dut.uio_in.value = 128 | 2*j + 1 # strobe | address
 		await ClockCycles(dut.clk, 1)
-		dut.ui_in.value = 2*j + 1 # turn off strobe
+		dut.uio_in.value = 2*j + 1 # turn off strobe
 		await ClockCycles(dut.clk, 9)
 
 		j += 1

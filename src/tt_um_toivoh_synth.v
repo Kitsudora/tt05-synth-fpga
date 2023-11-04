@@ -102,10 +102,10 @@ module tt_um_toivoh_synth #(
 	// Configuration input
 	// ===================
 	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
-	wire [7:0] cfg_in_data = uio_in;
-	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_in_addr = ui_in[CEIL_LOG2_CFG_WORDS:1];
-	wire cfg_in_addr0 = ui_in[0];
-	wire cfg_in_strobe_raw = ui_in[7];
+	wire [7:0] cfg_in_data = ui_in;
+	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_in_addr = uio_in[CEIL_LOG2_CFG_WORDS:1];
+	wire cfg_in_addr0 = uio_in[0];
+	wire cfg_in_strobe_raw = uio_in[7];
 
 	reg [1:0] strobe_sync; // synchronize strobe to clk
 	wire cfg_in_strobe = strobe_sync[0];
