@@ -191,11 +191,7 @@ module tt_um_toivoh_synth #(
 	wire [OSC_PERIOD_BITS-1:0] saw_period[NUM_OSCS];
 	wire [OCT_BITS-1:0] saw_oct[NUM_OSCS];
 	reg [WAVE_BITS-1:0] saw[NUM_OSCS];
-
-	// Try to work around internal error in linter
-	//wire [WAVE_BITS-1:0] curr_saw = saw[saw_index];
-	wire [WAVE_BITS-1:0] curr_saw = saw_index == 0 ? saw[0] : saw[1];
-
+	wire [WAVE_BITS-1:0] curr_saw = saw[saw_index];
 	wire [WAVE_BITS-1:0] next_saw = curr_saw + saw_trigger;
 
 	reg [OSC_PERIOD_BITS-1:0] saw_counter_state[NUM_OSCS];
