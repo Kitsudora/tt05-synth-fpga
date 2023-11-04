@@ -355,8 +355,8 @@ module tt_um_toivoh_synth #(
 	localparam A_SEL_V = 1;
 
 	wire [1:0] wf = saw_index ? misc_cfg[3:2] : misc_cfg[1:0];
-	wire [WAVE_BITS:0] curr_wave = (wf == WF_SQUARE) ? {~curr_saw[WAVE_BITS-1], 2'b10} : {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1};
-	// curr_pulse = {curr_saw[WAVE_BITS -: 2] != 2'd3, 2'b11};
+	wire [WAVE_BITS:0] curr_wave = (wf == WF_SQUARE) ? {~curr_saw[WAVE_BITS-1], 2'b10} :
+		((wf == WF_PULSE) ? {curr_saw[WAVE_BITS -: 2] != 2'd3, 2'b11} : {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1});
 
 	reg signed [FSTATE_BITS-1:0] y;
 	reg signed [FSTATE_BITS-1:0] v;

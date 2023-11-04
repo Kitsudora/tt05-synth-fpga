@@ -117,6 +117,7 @@ void run_model() {
 
 	uint16_t cfg[CFG_WORDS];
 	memset(cfg, 0, sizeof(cfg));
+	cfg[7] = 0xff00; // Don't test misc_cfg here
 	set_cfg(voice, cfg);
 
 	voice.update(voice.NUM_FSTATES);

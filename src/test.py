@@ -90,6 +90,7 @@ async def test_waveform(dut):
 		#dut.dut.cfg[7].value = 0x3fff #Inject into y instead
 
 		#dut.dut.cfg[7].value = 0xf5ff # Square
+		#dut.dut.cfg[7].value = 0xf0ff # Pulse
 
 		#dut.dut.y = -1 << 19
 		await ClockCycles(dut.clk, NUM_STATES)
@@ -213,6 +214,7 @@ async def test_compare(dut):
 	if not preserved: return
 
 	for i in range(CFG_WORDS): dut.dut.cfg[i].value = 0
+	dut.dut.cfg[7].value = 0xff00 # Don't test misc_cfg here
 
 	states = dict()
 
