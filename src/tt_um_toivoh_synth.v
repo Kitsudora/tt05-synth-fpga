@@ -85,8 +85,7 @@ module tt_um_toivoh_synth #(
 			assign cfg8[2*i+1] = cfg[i][15:8];
 			always @(posedge clk) begin
 				if (reset) begin
-					cfg[i] <= '0;
-					//cfg[i] <= (i < NUM_OSCS + NUM_MODS) ? '0 : '1; // Initialize sweeps with all ones to disable them. Todo: disable all.
+					cfg[i] <= '1; // Disable all counters by default
 				end else if (i == cfg_w_addr) begin
 					if (cfg_we[0]) cfg[i][7:0]  <= cfg_w_data[7:0];
 					if (cfg_we[1]) cfg[i][15:8] <= cfg_w_data[15:8];

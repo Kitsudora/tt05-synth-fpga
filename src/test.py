@@ -6,6 +6,25 @@ waveform_test = True
 compare_test = True
 #compare_test = False
 
+NUM_OSCS = 2
+NUM_MODS = 3
+NUM_SWEEPS = 5
+
+OCT_BITS = 4
+DIVIDER_BITS = 18
+OSC_PERIOD_BITS = 10
+MOD_PERIOD_BITS = 6
+WAVE_BITS = 2
+LEAST_SHR = 3
+
+EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1
+FEED_SHL = (1 << OCT_BITS) - 1
+STATE_BITS = WAVE_BITS + EXTRA_BITS
+SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
+
+NUM_FSTATES = 5
+CFG_WORDS = 8
+
 @cocotb.test()
 async def test_waveform(dut):
 	if not waveform_test: return
@@ -20,6 +39,7 @@ async def test_waveform(dut):
 	dut.uio_in.value = 0
 	await ClockCycles(dut.clk, 10)
 	dut.rst_n.value = 1
+	for i in range(NUM_SWEEPS): dut.dut.cfg[i].value = 0
 
 	# enable
 	dut.ena.value = 1
@@ -72,24 +92,6 @@ async def test_waveform(dut):
 	else:
 		ClockCycles(dut.clk, 2*period*8)
 
-NUM_OSCS = 2
-NUM_MODS = 3
-NUM_SWEEPS = 5
-
-OCT_BITS = 4
-DIVIDER_BITS = 18
-OSC_PERIOD_BITS = 10
-MOD_PERIOD_BITS = 6
-WAVE_BITS = 2
-LEAST_SHR = 3
-
-EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1
-FEED_SHL = (1 << OCT_BITS) - 1
-STATE_BITS = WAVE_BITS + EXTRA_BITS
-SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
-
-NUM_FSTATES = 5
-
 def sample0(v, value, nbits=64):
 	if value >= 1 << (nbits-1): value -= 1 << nbits
 	v.append(value)
@@ -139,6 +141,7 @@ async def test_compare(dut):
 	dut.uio_in.value = 0
 	await ClockCycles(dut.clk, 10)
 	dut.rst_n.value = 1
+	for i in range(CFG_WORDS): dut.dut.cfg[i].value = 0
 
 	# enable
 	dut.ena.value = 1
