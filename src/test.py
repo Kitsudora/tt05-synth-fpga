@@ -25,9 +25,7 @@ SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1
 NUM_FSTATES = 5
 CFG_WORDS = 8
 
-@cocotb.test()
-async def test_waveform(dut):
-	if not waveform_test: return
+def init1(dut):
 	dut._log.info("start")
 	clock = Clock(dut.clk, 2, units="us")
 	cocotb.start_soon(clock.start())
@@ -37,15 +35,12 @@ async def test_waveform(dut):
 	dut.rst_n.value = 0
 	dut.ui_in.value = 0
 	dut.uio_in.value = 0
-	await ClockCycles(dut.clk, 10)
+
+def init2(dut):
 	dut.rst_n.value = 1
-	for i in range(NUM_SWEEPS): dut.dut.cfg[i].value = 0
 
 	# enable
 	dut.ena.value = 1
-
-	#period = (512 + 56) << 3;
-	period = 512;
 
 	preserved = True
 	#preserved = False
@@ -53,6 +48,21 @@ async def test_waveform(dut):
 		oct_counter = dut.dut.oct_counter.value
 	except AttributeError:
 		preserved = False
+
+	return preserved
+
+
+@cocotb.test()
+async def test_waveform(dut):
+	if not waveform_test: return
+	init1(dut)
+	await ClockCycles(dut.clk, 10)
+	preserved = init2(dut)
+
+	for i in range(NUM_SWEEPS): dut.dut.cfg[i].value = 0
+
+	#period = (512 + 56) << 3;
+	period = 512;
 
 	if preserved:
 		#dut.dut.cfg[0].value = 256
@@ -130,30 +140,12 @@ def sample_voice(v, voice):
 @cocotb.test()
 async def test_compare(dut):
 	if not compare_test: return
-	dut._log.info("start")
-	clock = Clock(dut.clk, 2, units="us")
-	cocotb.start_soon(clock.start())
-
-	# reset
-	dut._log.info("reset")
-	dut.rst_n.value = 0
-	dut.ui_in.value = 0
-	dut.uio_in.value = 0
+	init1(dut)
 	await ClockCycles(dut.clk, 10)
-	dut.rst_n.value = 1
-	for i in range(CFG_WORDS): dut.dut.cfg[i].value = 0
-
-	# enable
-	dut.ena.value = 1
-
-	preserved = True
-	#preserved = False
-	try:
-		oct_counter = dut.dut.oct_counter.value
-	except AttributeError:
-		preserved = False
-
+	preserved = init2(dut)
 	if not preserved: return
+
+	for i in range(CFG_WORDS): dut.dut.cfg[i].value = 0
 
 	states = dict()
 
