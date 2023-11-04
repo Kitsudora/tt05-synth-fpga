@@ -98,15 +98,24 @@ module tt_um_toivoh_synth #(
 		for (i = NUM_OSCS; i < NUM_OSCS+NUM_MODS; i++) assign period_cfg[i] = cfg[i][OCT_BITS+MOD_PERIOD_BITS-2:0];
 	endgenerate
 
-
-	// Configuration input
-	// ===================
-	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
+	// Pins
+	// ====
 	wire [7:0] cfg_in_data = ui_in;
 	wire [CEIL_LOG2_CFG_WORDS-1:0] cfg_in_addr = uio_in[CEIL_LOG2_CFG_WORDS:1];
 	wire cfg_in_addr0 = uio_in[0];
 	wire cfg_in_strobe_raw = uio_in[7];
 
+	wire pwm_output;
+
+	assign uio_oe[5:0] = 0;
+	assign uio_oe[6] = 1;
+	assign uio_oe[7] = 0;
+	assign uio_out[5:0] = 0;
+	assign uio_out[6] = pwm_output;
+	assign uio_out[7] = 0;
+
+	// Configuration input
+	// ===================
 	reg [1:0] strobe_sync; // synchronize strobe to clk
 	wire cfg_in_strobe = strobe_sync[0];
 
@@ -404,11 +413,16 @@ module tt_um_toivoh_synth #(
 	// ===
 	reg [STATE_BITS:0] pwm_counter;
 
-	wire pwm_at_zero = pwm_counter == 0;
+	wire pwm_positive = pwm_counter != 0;
 	always @(posedge clk) begin
-		if (last_cycle_of_sample) pwm_counter <= {1'b0, ~y[FSTATE_BITS-1], y[FSTATE_BITS-2 -: STATE_BITS - 1]};
-		else pwm_counter <= pwm_counter - pwm_at_zero;
+		if (reset) pwm_counter <= 0;
+		else begin
+			if (last_cycle_of_sample) pwm_counter <= {1'b0, ~y[FSTATE_BITS-1], y[FSTATE_BITS-2 -: STATE_BITS - 1]};
+			else pwm_counter <= pwm_counter - pwm_positive;
+		end
 	end
+
+	assign pwm_output = pwm_positive;
 
 	// Output
 	// ======
