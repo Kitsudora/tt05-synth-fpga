@@ -61,6 +61,7 @@ module tt_um_toivoh_synth #(
 	localparam OSC_PERIOD_BASE = 0;
 	localparam MOD_PERIOD_BASE = NUM_OSCS;
 	localparam SWEEP_PERIOD_BASE = MOD_PERIOD_BASE + NUM_MODS;
+	localparam MISC_BASE8 = 2*SWEEP_PERIOD_BASE + NUM_SWEEPS;
 
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
@@ -100,6 +101,9 @@ module tt_um_toivoh_synth #(
 		for (i = 0; i < NUM_OSCS; i++)                 assign period_cfg[i] = cfg[i][OCT_BITS+OSC_PERIOD_BITS-2:0];
 		for (i = NUM_OSCS; i < NUM_OSCS+NUM_MODS; i++) assign period_cfg[i] = cfg[i][OCT_BITS+MOD_PERIOD_BITS-2:0];
 	endgenerate
+
+	wire [7:0] misc_cfg = cfg8[MISC_BASE8];
+	wire [NUM_OSCS-1:0] yv_sel = misc_cfg[7 :- NUM_OSCS]; // 1 = y, 0 = v
 
 	// Pins
 	// ====
