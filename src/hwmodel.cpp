@@ -1,4 +1,3 @@
-#include <iostream>
 #include "hwmodel.h"
 
 int VoiceModel::update(int state) {
@@ -25,24 +24,7 @@ int VoiceModel::update(int state) {
 
 		int saw_index = state & 1; // Assuming two oscillators
 		int saw_signed = saw[saw_index] - (1 << (WAVE_BITS - 1));
-
-
-		// Waveforms:
-		// TODO: fix pulse/square/noise
-		int wave;
-		int saw_msb = (saw_signed >> (WAVE_BITS - 2)) & 3;
-
-		int wave_sel = (misc_cfg >> (2*saw_index)) & 3;
-
-		if (wave_sel == WF_PULSE) wave = (-1 + 4*(saw_msb == 3)) << (WAVE_BITS - 2);
-		else if (wave_sel == WF_SQUARE || wave_sel == WF_NOISE) wave = (-1 + (saw_msb & 2)) << (WAVE_BITS - 1);
-		else wave = (saw_signed << 1) + 1;
-
-		//std::cout << "wave_sel = " << wave_sel << std::endl;
-		//std::cout << "wave = " << wave << std::endl;
-
-
-		int saw_signed_shifted = wave << (FEED_SHL - 1);
+		int saw_signed_shifted = (saw_signed << FEED_SHL) + (1 << (FEED_SHL - 1));
 
 		switch (state) {
 			//case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + (saw_signed_shifted >> nfs[VOL_INDEX]), FSTATE_BITS); break;

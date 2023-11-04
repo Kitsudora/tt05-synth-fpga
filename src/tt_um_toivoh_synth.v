@@ -70,11 +70,6 @@ module tt_um_toivoh_synth #(
 	localparam DITHER_BITS = SHIFTER_BITS - (STATE_BITS - LEAST_SHR);
 
 
-	localparam WF_PULSE = 0;
-	localparam WF_SQUARE = 1;
-	localparam WF_NOISE = 2;
-	localparam WF_SAW = 3;
-
 	wire reset = !rst_n;
 
 	genvar i;
@@ -109,8 +104,6 @@ module tt_um_toivoh_synth #(
 
 	wire [7:0] misc_cfg = cfg8[MISC_BASE8];
 	wire [NUM_OSCS-1:0] yv_sel = misc_cfg[7 -: NUM_OSCS]; // 0 = y (lpf1), 1 = v (lpf2)
-	wire [1:0] waveform_sel[NUM_OSCS-1:0];
-	assign {waveform_sel[1], waveform_sel[0]} = misc_cfg[3:0];
 
 	// Pins
 	// ====
@@ -358,11 +351,7 @@ module tt_um_toivoh_synth #(
 	reg signed [FSTATE_BITS-1:0] y;
 	reg signed [FSTATE_BITS-1:0] v;
 
-	wire [WAVE_BITS:0] curr_square = {~curr_saw[WAVE_BITS-1], 2'b10};
-	wire [WAVE_BITS:0] curr_pulse = {curr_saw[WAVE_BITS -: 2] != 2'd3, 2'b11};
-
 	// Not registers, but assigned in the case below:
-	reg [SHIFTER_BITS-1:0] curr_wave; // TODO: could be smaller? Except for noise at least.
 	wire a_sign = a_src[FSTATE_BITS-1];
 	reg [A_SEL_BITS-1:0] a_sel;
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
@@ -370,12 +359,6 @@ module tt_um_toivoh_synth #(
 	reg [CEIL_LOG2_NUM_MODS-1:0] nf_index;
 	reg [1:0] filter_target;
 	always @(*) begin
-		case (waveform_sel[saw_index])
-			WF_PULSE: curr_wave = {curr_pulse, {(FEED_SHL-1){1'b0}}};
-			WF_SQUARE, WF_NOISE: curr_wave = {curr_square, {(FEED_SHL-1){1'b0}}};
-			WF_SAW: curr_wave = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
-		endcase
-
 		case (state)
 			FSTATE_VOL0, FSTATE_VOL1: begin
 				if (yv_sel[saw_index] == 1) begin
@@ -387,7 +370,7 @@ module tt_um_toivoh_synth #(
 				end
 				// curr_saw will depend on state[0]
 				//shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
-				shifter_src = curr_wave;
+				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
 				nf_index = VOL_INDEX;
 			end
 			FSTATE_DAMP: begin
