@@ -64,6 +64,8 @@ module tt_um_toivoh_synth #(
 	localparam FSTATE_BITS = WAVE_BITS + EXTRA_BITS;
 	localparam SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
+	localparam STATE_BITS = 3;
+
 	wire reset = !rst_n;
 
 	genvar i;
@@ -130,8 +132,8 @@ module tt_um_toivoh_synth #(
 
 	// State machine
 	// =============
-	reg [2:0] state;
-	wire [3:0] next_state = state + 1;
+	reg [STATE_BITS-1:0] state;
+	wire [STATE_BITS:0] next_state = state + 1;
 
 	// Octave divider
 	// ==============
@@ -146,8 +148,8 @@ module tt_um_toivoh_synth #(
 			state <= 0;
 			oct_counter <= 0;
 		end else begin
-			state <= next_state[2:0];
-			if (next_state[3]) oct_counter <= next_oct_counter;
+			state <= next_state[STATE_BITS-1:0];
+			if (next_state[STATE_BITS]) oct_counter <= next_oct_counter;
 		end
 	end
 
