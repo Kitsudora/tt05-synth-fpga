@@ -344,12 +344,16 @@ module tt_um_toivoh_synth #(
 	localparam TARGET_V = 1;
 	localparam TARGET_NONE = 2;
 
+	localparam A_SEL_BITS = 1;
+	localparam A_SEL_Y = 0;
+	localparam A_SEL_V = 1;
+
 	reg signed [FSTATE_BITS-1:0] y;
 	reg signed [FSTATE_BITS-1:0] v;
 
 	// Not registers, but assigned in the case below:
-	reg signed [FSTATE_BITS-1:0] a_src;
 	wire a_sign = a_src[FSTATE_BITS-1];
+	reg [A_SEL_BITS-1:0] a_sel;
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
 	wire signed [SHIFTER_BITS-1:0] dither;
 	reg [CEIL_LOG2_NUM_MODS-1:0] nf_index;
@@ -358,7 +362,7 @@ module tt_um_toivoh_synth #(
 		case (state)
 			FSTATE_VOL0, FSTATE_VOL1: begin
 				filter_target = TARGET_V;
-				a_src = v;
+				a_sel = A_SEL_V;
 				// curr_saw will depend on state[0]
 				//shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
 				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation
@@ -366,36 +370,38 @@ module tt_um_toivoh_synth #(
 			end
 			FSTATE_DAMP: begin
 				filter_target = TARGET_V;
-				a_src = v;
+				a_sel = A_SEL_V;
 				shifter_src = ~v[FSTATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = DAMP_INDEX;
 			end
 			FSTATE_CUTOFF_Y: begin
 				filter_target = TARGET_Y;
-				a_src = y;
+				a_sel = A_SEL_Y;
 				shifter_src = v[FSTATE_BITS-1:LEAST_SHR];
 				nf_index = CUTOFF_INDEX;
 			end
 			FSTATE_CUTOFF_V: begin
 				filter_target = TARGET_V;
-				a_src = v;
+				a_sel = A_SEL_V;
 				shifter_src = ~y[FSTATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = CUTOFF_INDEX;
 			end
 			FSTATE_OUTPUT: begin
 				filter_target = TARGET_NONE;
-				a_src = y;
+				a_sel = A_SEL_Y;
 				shifter_src = dither;
 				nf_index = NFZERO_INDEX;
 			end
 			default: begin
 				filter_target = TARGET_NONE;
-				a_src = 'X;
+				a_sel = 'X;
 				shifter_src = 'X;
 				nf_index = 'X;
 			end
 		endcase
 	end
+
+	wire signed [FSTATE_BITS-1:0] a_src = a_sel == A_SEL_Y ? y : v;
 
 	wire [OCT_BITS:0] nf0 = (nf_index == NFZERO_INDEX) ? '0 : (mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]));
 	wire [OCT_BITS-1:0] nf = nf0[OCT_BITS] ? '1 : nf0[OCT_BITS-1:0]; // saturate nf
