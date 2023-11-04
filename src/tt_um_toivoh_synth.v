@@ -134,6 +134,7 @@ module tt_um_toivoh_synth #(
 	// =============
 	reg [STATE_BITS-1:0] state;
 	wire [STATE_BITS:0] next_state = state + 1;
+	wire last_cycle_of_sample = next_state[STATE_BITS];
 
 	// Octave divider
 	// ==============
@@ -149,7 +150,7 @@ module tt_um_toivoh_synth #(
 			oct_counter <= 0;
 		end else begin
 			state <= next_state[STATE_BITS-1:0];
-			if (next_state[STATE_BITS]) oct_counter <= next_oct_counter;
+			if (last_cycle_of_sample) oct_counter <= next_oct_counter;
 		end
 	end
 
@@ -397,6 +398,16 @@ module tt_um_toivoh_synth #(
 			if (filter_target == TARGET_Y) y <= next_filter_state;
 			if (filter_target == TARGET_V) v <= next_filter_state;
 		end
+	end
+
+	// PWM
+	// ===
+	reg [STATE_BITS:0] pwm_counter;
+
+	wire pwm_at_zero = pwm_counter == 0;
+	always @(posedge clk) begin
+		if (last_cycle_of_sample) pwm_counter <= {1'b0, ~y[FSTATE_BITS-1], y[FSTATE_BITS-2 -: STATE_BITS - 1]};
+		else pwm_counter <= pwm_counter - pwm_at_zero;
 	end
 
 	// Output
