@@ -47,7 +47,32 @@ documentation:
       Don't apply more than 1 V between the terminals of an audio plug this connected to line in.
       5 V direct from the chip might damage your audio device.**
 
-      TODO: Register descriptions
+      Registers
+        - Address 0-1: `osc_period0`, 2-3: `osc_period1`; 2 bytes each
+        - Address 4-5: `cutoff_period`, 6-7: `damp_period`, 8-9: `vol_period`; 2 bytes each
+        - Address 10-14: `sweep_osc0_period, sweep_osc1_period, sweep_cutoff_period, sweep_damp_period, sweep_vol_period`
+        - Address 15: `cfg`
+
+        The registers are initialized to all zeros at reset.
+        The frequency registers are in a kind of floating point format:
+          - Oscillator periods are 13 bits: 4 bits exponent + 9 bits mantissa
+          - Cutoff, damping, and volume periods are 9 bits: 4 bits octave + 5 bits period
+          - Sweep periods are 8 bits signed: 1 bit sign + 4 bits octave + 3 bits mantissa
+
+        Increasing the octave by one doubles the period.
+        The volume depends on the ratio between the cutoff and volume periods (not their float representations).
+        The damping depends on the ratio between the cutoff and damping periods (not their float representations).
+        As the damping period gets longer than the cutoff period, resonance increases around the cutoff frequency.
+        If damping is low and/or volume is high, the filter will begin to saturate.
+
+        Each sweep will increase or decrease the connected period.
+        Setting the exponent in any period to the max value of 15 achieves a frequency of zero. This is the state upon reset.
+
+        The `cfg` register contains
+        - Bits 0-1: Waveform for oscillator 0: 0 = pulse, 1 = square, 2 = noise, 3 = saw
+        - Bits 2-3: Waveform for oscillator 1
+        - Bits 4-5: Unused
+        - Bits 6-7: Filter mode for oscillator 1 and 2, 0 = 1st order falloff, 1 = 2nd order falloff
 
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:
