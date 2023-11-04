@@ -87,7 +87,10 @@ async def test_waveform(dut):
 		dut.dut.cfg[6].value = 0x00ff
 		#dut.dut.cfg[7].value = 0xff80
 
-		#dut.dut.cfg[7].value = 0x3fff #Inject into y instead
+		#dut.dut.cfg[7].value = 0x3fff # Inject into y instead
+		#dut.dut.cfg[7].value = 0xf0ff # Pulse wave
+		#dut.dut.cfg[7].value = 0xf5ff # Square wave
+		#dut.dut.cfg[7].value = 0xf3ff # Saw + pulse wave
 
 		#dut.dut.y = -1 << 19
 		await ClockCycles(dut.clk, NUM_STATES)

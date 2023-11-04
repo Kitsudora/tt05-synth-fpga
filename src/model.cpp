@@ -95,6 +95,8 @@ void rand_cfg(uint16_t cfg[]) {
 
 	for (int i = 0; i < VoiceModel::NUM_OSCS; i++) cfg[i] &= ((1 << (OCT_BITS + OSC_PERIOD_BITS - 1)) - 1);
 	for (int i = 0; i < VoiceModel::NUM_MODS; i++) cfg[VoiceModel::NUM_OSCS + i] &= rand() & ((1 << (OCT_BITS + MOD_PERIOD_BITS - 1)) - 1);
+
+	cfg[7] |= 0x0f00; // Force sawtooth. TODO: Fix pulse/square/noise in C model
 }
 
 void set_cfg(VoiceModel &voice, const uint16_t cfg[]) {
