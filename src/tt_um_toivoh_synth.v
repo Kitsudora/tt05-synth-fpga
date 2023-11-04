@@ -21,7 +21,7 @@ endmodule
 
 module tt_um_toivoh_synth #(
 		parameter OCT_BITS = 4, // 8 octaves is enough for pitch, but the filters need to be able to sweep lower
-		parameter DIVIDER_BITS = 16, // 14 for the pitch, 2 extra for the sweeps
+		parameter DIVIDER_BITS = 16+1, // 14 for the pitch, 2 extra for the sweeps
 		parameter OSC_PERIOD_BITS = 10,
 		parameter MOD_PERIOD_BITS = 6,
 		parameter SWEEP_PERIOD_BITS = 4,
@@ -39,6 +39,8 @@ module tt_um_toivoh_synth #(
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
+	localparam STATE_BITS = 3;
+
 	localparam OUT_BITS = 8;
 
 	localparam CEIL_LOG2_NUM_OSCS = 1;
@@ -49,6 +51,7 @@ module tt_um_toivoh_synth #(
 	localparam CUTOFF_INDEX = 0;
 	localparam DAMP_INDEX = 1;
 	localparam VOL_INDEX = 2;
+	localparam NFZERO_INDEX = 3; // Not a modulator; use to set nf to zero
 
 	localparam CEIL_LOG2_NUM_SWEEPS = 3;
 	localparam NUM_SWEEPS = NUM_OSCS + NUM_MODS;
@@ -63,8 +66,8 @@ module tt_um_toivoh_synth #(
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
 	localparam FSTATE_BITS = WAVE_BITS + EXTRA_BITS;
 	localparam SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
+	localparam DITHER_BITS = SHIFTER_BITS - (STATE_BITS - LEAST_SHR);
 
-	localparam STATE_BITS = 3;
 
 	wire reset = !rst_n;
 
@@ -328,6 +331,7 @@ module tt_um_toivoh_synth #(
 	localparam FSTATE_DAMP = 2;
 	localparam FSTATE_CUTOFF_Y = 3;
 	localparam FSTATE_CUTOFF_V = 4;
+	localparam FSTATE_OUTPUT = 2**STATE_BITS - 1;
 
 	localparam TARGET_Y = 0;
 	localparam TARGET_V = 1;
@@ -340,6 +344,7 @@ module tt_um_toivoh_synth #(
 	reg signed [FSTATE_BITS-1:0] a_src;
 	wire a_sign = a_src[FSTATE_BITS-1];
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
+	wire signed [SHIFTER_BITS-1:0] dither;
 	reg [CEIL_LOG2_NUM_MODS-1:0] nf_index;
 	reg [1:0] filter_target;
 	always @(*) begin
@@ -370,6 +375,12 @@ module tt_um_toivoh_synth #(
 				shifter_src = ~y[FSTATE_BITS-1:LEAST_SHR]; // cheaper negation
 				nf_index = CUTOFF_INDEX;
 			end
+			FSTATE_OUTPUT: begin
+				filter_target = TARGET_NONE;
+				a_src = y;
+				shifter_src = dither;
+				nf_index = NFZERO_INDEX;
+			end
 			default: begin
 				filter_target = TARGET_NONE;
 				a_src = 'X;
@@ -379,7 +390,7 @@ module tt_um_toivoh_synth #(
 		endcase
 	end
 
-	wire [OCT_BITS:0] nf0 = mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]);
+	wire [OCT_BITS:0] nf0 = (nf_index == NFZERO_INDEX) ? '0 : (mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]));
 	wire [OCT_BITS-1:0] nf = nf0[OCT_BITS] ? '1 : nf0[OCT_BITS-1:0]; // saturate nf
 
 	//wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
@@ -411,13 +422,21 @@ module tt_um_toivoh_synth #(
 
 	// PWM
 	// ===
-	reg [STATE_BITS:0] pwm_counter;
+	reg [STATE_BITS-1:0] pwm_counter;
+
+	generate
+		if (SHIFTER_BITS > DITHER_BITS) assign dither[SHIFTER_BITS-1:DITHER_BITS] = oct_counter[DITHER_BITS-1] ? '1 : '0; // sign extend dither
+		for (i = 0; i < DITHER_BITS; i++) begin
+			assign dither[i] = oct_counter[DITHER_BITS-1 - i];
+		end
+	endgenerate
 
 	wire pwm_positive = pwm_counter != 0;
 	always @(posedge clk) begin
 		if (reset) pwm_counter <= 0;
 		else begin
-			if (last_cycle_of_sample) pwm_counter <= {1'b0, ~y[FSTATE_BITS-1], y[FSTATE_BITS-2 -: STATE_BITS - 1]};
+			// Using the filter's adder to add the dithering
+			if (last_cycle_of_sample) pwm_counter <= {~next_filter_state[FSTATE_BITS-1], next_filter_state[FSTATE_BITS-2 -: STATE_BITS - 1]};
 			else pwm_counter <= pwm_counter - pwm_positive;
 		end
 	end
