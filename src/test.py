@@ -216,3 +216,53 @@ async def test_compare(dut):
 			assert num_fails == 0
 	except FileNotFoundError:
 		println("model.data not found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+
+@cocotb.test()
+async def test_write_cfg(dut):
+	if not waveform_test: return
+	dut.uio_in.value = 0
+	dut.ui_in.value = 0
+	init1(dut)
+	await ClockCycles(dut.clk, 10)
+	preserved = init2(dut)
+	if not preserved: return
+
+	cfg = [0xa55a]*NUM_SWEEPS + [0xffff]*(CFG_WORDS - NUM_SWEEPS)
+	for (i, c) in enumerate(cfg): dut.dut.cfg[i].value = c
+	await ClockCycles(dut.clk, 1)
+	for (i, c) in enumerate(cfg): assert int(dut.dut.cfg[i].value) == c
+
+	j = 0
+	i0 = 0
+	while True:
+		print("j =", j)
+		await ClockCycles(dut.clk, 16)
+
+		i0 = 2*(j - NUM_SWEEPS)
+		for (i, c) in enumerate(cfg): assert i < i0 or int(dut.dut.cfg[i].value) == c
+
+		if j >= CFG_WORDS: break
+
+		# Write low byte
+		dut.uio_in.value = 0xa5 # data
+		cfg[j] = (cfg[j] & 0xff00) | 0xa5
+		dut.ui_in.value = 128 | 2*j # strobe | address
+		await ClockCycles(dut.clk, 1)
+		dut.ui_in.value = 2*j # turn off strobe
+		await ClockCycles(dut.clk, 9)
+
+		i0 = 2*(j - NUM_SWEEPS) + 1
+		for (i, c) in enumerate(cfg):
+			#print("i:", i, ", c:", c)
+			assert i < i0 or int(dut.dut.cfg[i].value) == c
+
+		# Write high byte
+		dut.uio_in.value = 0x5a # data
+		cfg[j] = (cfg[j] & 0xff) | 0x5a00
+		dut.ui_in.value = 128 | 2*j + 1 # strobe | address
+		await ClockCycles(dut.clk, 1)
+		dut.ui_in.value = 2*j + 1 # turn off strobe
+		await ClockCycles(dut.clk, 9)
+
+		j += 1
