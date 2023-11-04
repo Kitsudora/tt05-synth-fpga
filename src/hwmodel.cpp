@@ -31,7 +31,12 @@ int VoiceModel::update(int state) {
 			//case FSTATE_DAMP: v = saturate(v + ~(v >> (LEAST_SHR + nfs[DAMP_INDEX])), FSTATE_BITS); break;
 			//case FSTATE_CUTOFF_Y: y = saturate(y + (v >> (LEAST_SHR + nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
 			//case FSTATE_CUTOFF_V: v = saturate(v + ~(y >> (LEAST_SHR + nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
-			case FSTATE_VOL0: case FSTATE_VOL1: v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), FSTATE_BITS); break;
+			case FSTATE_VOL0: case FSTATE_VOL1: {
+				if (misc_cfg & (1 << (8 - NUM_OSCS + saw_index)))
+					v = saturate(v + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), FSTATE_BITS); 
+				else
+					y = saturate(y + ((shifter_src = saw_signed_shifted) >> (nf = nfs[VOL_INDEX])), FSTATE_BITS); 
+			} break;
 			case FSTATE_DAMP:                   v = saturate(v + ((shifter_src = ~(v >> LEAST_SHR)) >> (nf = nfs[DAMP_INDEX])), FSTATE_BITS); break;
 			case FSTATE_CUTOFF_Y:               y = saturate(y + ((shifter_src = (v >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), FSTATE_BITS); break;
 			case FSTATE_CUTOFF_V:               v = saturate(v + ((shifter_src = ~(y >> LEAST_SHR)) >> (nf = nfs[CUTOFF_INDEX])), FSTATE_BITS); break;

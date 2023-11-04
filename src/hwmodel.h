@@ -49,6 +49,8 @@ struct VoiceModel {
 
 	int OCT_BITS, WAVE_BITS, LEAST_SHR, OUTPUT_BITS, LOG2_SWEEP_UPDATE_PERIOD;
 
+	int misc_cfg;
+
 	int oct_counter;
 	int oct_enables;
 
@@ -80,6 +82,7 @@ struct VoiceModel {
 		for (int i = 0; i < NUM_SWEEPS; i++) sweeps[i].init(SWEEP_PERIOD_BITS, SWEEP_LOG2_STEP, false);
 	}
 	void reset() {
+		misc_cfg = 0xff;
 		oct_counter = oct_enables = 0;
 		for (int i = 0; i < NUM_OSCS; i++) oscs[i].reset();
 		for (int i = 0; i < NUM_MODS; i++) mods[i].reset();

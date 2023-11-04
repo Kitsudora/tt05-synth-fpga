@@ -87,6 +87,8 @@ async def test_waveform(dut):
 		dut.dut.cfg[6].value = 0x00ff
 		#dut.dut.cfg[7].value = 0xff80
 
+		#dut.dut.cfg[7].value = 0x3fff #Inject into y instead
+
 		#dut.dut.y = -1 << 19
 		await ClockCycles(dut.clk, NUM_STATES)
 		with open("tb-data.txt", "w") as file:
@@ -181,6 +183,7 @@ def sample_voice(v, voice):
 	full_state = 0 <= state < NUM_FSTATES
 
 	sample(v, voice.uo_out)
+	sample(v, voice.misc_cfg)
 	sample(v, voice.state)
 	sample(v, voice.oct_counter)
 	sample(v, voice.oct_enables)

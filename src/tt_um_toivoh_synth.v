@@ -103,7 +103,7 @@ module tt_um_toivoh_synth #(
 	endgenerate
 
 	wire [7:0] misc_cfg = cfg8[MISC_BASE8];
-	wire [NUM_OSCS-1:0] yv_sel = misc_cfg[7 :- NUM_OSCS]; // 1 = y, 0 = v
+	wire [NUM_OSCS-1:0] yv_sel = misc_cfg[7 -: NUM_OSCS]; // 0 = y (lpf1), 1 = v (lpf2)
 
 	// Pins
 	// ====
@@ -361,8 +361,13 @@ module tt_um_toivoh_synth #(
 	always @(*) begin
 		case (state)
 			FSTATE_VOL0, FSTATE_VOL1: begin
-				filter_target = TARGET_V;
-				a_sel = A_SEL_V;
+				if (yv_sel[saw_index] == 1) begin
+					filter_target = TARGET_V;
+					a_sel = A_SEL_V;
+				end else begin
+					filter_target = TARGET_Y;
+					a_sel = A_SEL_Y;
+				end
 				// curr_saw will depend on state[0]
 				//shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], {(FEED_SHL){1'b0}}};
 				shifter_src = {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1, {(FEED_SHL-1){1'b0}}}; // Center the saw to reduce risk of one sided filter saturation

@@ -40,6 +40,7 @@ void sample_counter(PairVector &v, const std::string &name, CounterModel &c) {
 void sample_voice(PairVector &v, VoiceModel &voice) {
 	int i;
 	sample(v, "out", voice.out);
+	sample(v, "misc_cfg", voice.misc_cfg);
 	sample(v, "state", voice.state);
 	sample(v, "oct_counter", voice.oct_counter & ((1 << (DIVIDER_BITS))-1));     // Hack: supress higher bits of oct_counter
 	sample(v, "oct_enables", voice.oct_enables & ((1 << (DIVIDER_BITS + 1))-1)); // and oct_enables; they hopefully shouldn't make a difference...
@@ -105,6 +106,7 @@ void set_cfg(VoiceModel &voice, const uint16_t cfg[]) {
 		voice.sweeps[i].float_period = c & ((1 << (OCT_BITS + SWEEP_PERIOD_BITS - 1)) - 1);
 		voice.sweep_down[i] = (c>>7) != 0;
 	}
+	voice.misc_cfg = cfg8[2*(voice.NUM_OSCS + voice.NUM_MODS) + voice.NUM_SWEEPS];
 }
 
 void run_model() {
