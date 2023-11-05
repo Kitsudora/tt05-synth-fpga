@@ -1,6 +1,6 @@
 name: test
 # either manually started, or on a schedule
-on: [ push, workflow_dispatch ]
+#on: [ push, workflow_dispatch ]
 jobs:
   test:
     # ubuntu
