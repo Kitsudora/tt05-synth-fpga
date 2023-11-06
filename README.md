@@ -19,14 +19,14 @@ The synth has
 The output is generated using Pulse Width Modulation, with dithering to add additional resolution for lower frequencies.
 There is also an 8 bit output for the sample, but the PWM output should be easier to use.
 
-The synth is intended to be clocked at 50 MHz and generate one sample every 32 cycles, or at `sample_rate = 1.5625 MHz`. Only 6 cycles would be needed, but using 32 cycles provides increased PWM resolution. The maximum oscillator frequency is the `sample_rate/512`, or 3052 Hz if clocked at 50 MHz.
+The synth is intended to be clocked at 50 MHz and generate one sample every 32 cycles, or at `sample_rate = 1.5625 MHz`. Only 6 cycles are actually needed to generate a new sample, but using 32 cycles provides increased PWM resolution. The maximum oscillator frequency is `sample_rate/512`, or 3052 Hz if clocked at 50 MHz.
 
 Signal flow
 -----------
 
-  oscillator 1 \
-                adder -> volume -> filter -> output
-  oscillator 2 /
+    oscillator 1 \
+                  adder -> volume -> filter -> output
+    oscillator 2 /
 
 Pins
 ----
@@ -39,9 +39,9 @@ The top module has IO 24 pins:
 
 There is also a clock and a synchronous reset.
 
-**Caution: Be sure that you know what you are doing when trying to connect an audio device to the `pwm` (or `sample`) signals.
-Don't apply more than 1 V between the terminals of an audio plug that is connected to an audio input, or it might take damage.
-Use an appropriate resistive divider to reduce the output voltage. Don't draw more than absolutely maximum 4 mA from the TT05 outputs to avoid damaging them.**
+**Caution!: Be sure that you know what you are doing when trying to connect an audio device to the `pwm` (or `sample`) signals!
+Do not apply more than 1 V between the terminals of an audio plug that is connected to an audio input, or it might take damage!
+Use an appropriate resistive divider to reduce the output voltage. Do not draw more than absolutely maximum 4 mA from the TT05 outputs to avoid damaging them!**
 
 Controlling the sound
 ---------------------
@@ -71,7 +71,7 @@ The memory map is laid out as follows: (one 16 bit word per line)
     14     |        cfg |    vol_sweep |
 
 ### Control registers
-All control registers except `cfg` are expressed in terms of periods.
+All control registers except `cfg` are expressed in terms of periods, which in turn control frequencies.
 The periods are expessed in a simple floating point format with 4 bit exponent and 9, 5, or 3 bit mantissa for the oscillator periods,
 cutoff/damp/volume periods, and sweep periods respectively. The sweep periods also have a sign bit.
 
@@ -137,7 +137,7 @@ The waveform for oscillator 1 is controlled by `cfg[1:0]`, and for oscillator 2 
 - 2: noise
 - 3: 2 bit sawtooth wave
 
-#### Filter falloff
+#### Filter fall-off
 Each oscillator can be fed into the filter in one of two ways, depending on `cfg[6]` / `cfg[6]` for oscillator 1 / 2:
-0: First order falloff
-1: Second order falloff
+- 0: First order fall-off
+- 1: Second order fall-off
