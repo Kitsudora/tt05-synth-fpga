@@ -2,7 +2,7 @@
 
 tt05-synth -- Analog inspired monosynth
 =======================================
-tt05-synth is a small analog inspired monosynth implementation in silicon to be taped out as part of tapeout TT05 at https://tinytapeout.com.
+tt05-synth is a small analog inspired monosynth implementation in silicon to be taped out as part of tapeout TT05 at https://tinytapeout.com, using an area of 160 x 200 um in a 130 nm CMOS process.
 
 The synth has
 - Two oscillators
@@ -24,9 +24,9 @@ The synth is intended to be clocked at 50 MHz and generate one sample every 32 c
 Signal flow
 -----------
 
-    oscillator 1 \
-                  adder -> volume -> filter -> output
-    oscillator 2 /
+    oscillator 1 -> volume gain \
+                                 filter -> output
+    oscillator 2 -> volume gain /
 
 Pins
 ----
@@ -141,3 +141,127 @@ The waveform for oscillator 1 is controlled by `cfg[1:0]`, and for oscillator 2 
 Each oscillator can be fed into the filter in one of two ways, depending on `cfg[6]` / `cfg[6]` for oscillator 1 / 2:
 - 0: First order fall-off
 - 1: Second order fall-off
+
+How it works
+------------
+The main components are
+- Oscillators
+- Modifier oscillators for volume, cutoff, and damping
+- Sweep oscillators
+- Filter
+- PWM
+
+The design is inspired by analog synths.
+A simple classic analog synth could contain
+- a few oscillators with a choice of waveforms, summed together,
+- a voltage controlled filter (VCF) with voltage controlled cutoff frequency and controllable resonance (often through a potentiometer),
+- a voltage controlled amplifier (VCA),
+- envelopes and low frequency oscillators (LFOs) to generate control voltages for the oscillators (pitch), VCF, and VCA.
+
+Control voltages are generally passed through an exponential converter, so that a linear change in voltage gives in exponential change in frequency or amplitude.
+
+In tt05-synth, the amplifier stage is placed before feeding the oscillator signal into the filter, because it produces more interesting results:
+a high gain causes the filter to saturate, changing the waveform and causing intermodulation between the oscillator waveforms.
+The sweeps can be used to create very simple envelopes. With occasional external updates, they can be used to generate more complex control waveforms, including effects such as ADSR envelopes and LFOs.
+
+The analog inspiration is not seen just in the components of the synth, but also in the floating point representation of the controls and the implementation of the filter.
+
+Another important theme of the design is to keep the complexity to low, to save on silicon area. To this end, the design tries to
+- use as few bits as needed (flip flops are big), and
+- reuse logic when practical.
+
+More bits could have been saved, more logic reused, and the area could have been used to implement more features. But that is for another tapeout.
+
+### Oscillators
+Each waveform oscillator uses a period of `2^osc_period[12:9] * (512 + osc_period[8:0])` samples.
+By using a period that is a whole number of samples, the waveform becomes exctly periodic, and inharmonic aliasing is avoided.
+The frequency resolution is chosen so that the smallest frequency step, `513/512`, or roughly 3.38 cents, is smaller than the just noticeably difference, assumed to be greater than cents. This also allows for a useful detuning range of a few frequency steps.
+
+A range of 16 octaves is clearly overkill. A range of 8 octaves from 12 Hz to 3052 Hz might have been sufficient,
+but supporting a few octaves below the audible range helps when sweeping the frequency down.
+
+A 10 bit counter is used to generate a waveform with the desired period.
+In the simplest form, the counter would count down by one each sample, triggering and adding `512 + osc_period[8:0]` if the counter would otherwise become negative.
+This allows to create a `waveform_period` that is 512 to 1023 times `sample_rate`.
+
+#### Floating point format for periods, exponential conversion
+To be able to create a sawtooth waveform, the counter instead counts down by `2^n_saw` each sample, still triggering when needed.
+Each time the counter triggers, an `n_saw` bit counter called `saw` is increased by one. This `saw` wraps around once per `waveform_period`.
+
+To support lower octaves, the synth contains a clock divider. `n = osc_period[12:9]` is used to select an enable signal from the clock divider, so that the counter is only updated once per `2^n` samples. When `n = 15`, the enable signal is made always low, to be able to stop an oscillator.
+
+The floating point representation causes the relative frequency accuracy to be same for each octave, saving bits compared to a linear representation of the period.
+It also acts as a pseudo-exponential converter, so that sweeps of cutoff frequency, volume, etc, have an exponential progression.
+The result is a piecewise linear approximation of an exponential function, but I have not noticed any ill audibly ill effects from this.
+
+#### Modulation oscillators
+Modulation oscillators have a lower resolution with only 5 bits mantissa. This is based on listening tests where I let cutoff frequency or volume sweep down, to see where I would start to hear stepwise motion. 4 bits might have been ok as well.
+Otherwise, modulation oscillators work very much like waveform oscillators except for one important difference:
+a higher exponent doesn't cause the oscillator to trigger less often, insted, the filter is updated by a smaller step. More about this in the filter section.
+
+An 8 octave range for the modulation oscillators would not have been enough. To begin with, the highest cutoff frequency is about 30 kHz, to make sure that the filter can act as if completely open. An 8 octave range would only allow it to go down to about 120 Hz. When the cutoff frequency sweeps down, I needs to go a number of octaves below the oscillator frequency before the output can no longer be heard.
+
+#### Sweep oscillators
+Sweep oscillators have an even lower resolution with only 3 bits of mantissa, to save bits.
+Each time on triggers, the corresponding period is increased or decreased by one.
+
+The 16 octave range for sweep oscillators is very useful to be able both to quickly sweep a frequency from the top octave to the bottom, and to sweep an oscillator frequency with a few cents per second.
+
+### Filter
+A VCF is typically designed staring from a fixed frequency filter design with desirable properties, and then variable gains are used to shift the filter frequency. The same principle is used here.
+
+The filter is a two-pole filter, and thus has two states. This is the simplest filter that can have a resonance peak.
+The states are called `y` and `v`. `y` is the output signal (position) and `v` is the velocity.
+
+#### Basic filter structure
+Let
+
+    x = [y
+         v]
+
+be the vector of filter states. The basis of the filter is the update step `x_next = A * x`, where
+
+    A = [ 1 a
+         -a 1-a^2]
+
+which corresponds to a completely undamped filter, with `det(A) = 1`.
+The update step can be factored into two substeps:
+
+    A = [ 1 0         [ 1 a
+         -a 1 ]   *     0 1 ]
+
+so that the undamped update can be realized as
+
+    y += a*v
+    v -= a*y
+
+A damping step can be added with
+
+    v -= a*v
+
+For small values of `a`, the combined dynamics approximate a differential equation
+
+    y' =      v
+    v' = -y - v
+
+an oscillator with a Q value of one.
+An input `u` can be added into the filter by changing `v -= a*y` to `v += a*(u - y)`, or by adding the update step
+
+    v += a*u
+
+#### Varying the cutoff frequency, resonance, and volume
+For the resonance frequency of the undamped filter is `arcsin(a/2)/pi`, or approximately `a/(2*pi)`, with an error of 1.1% when `a = 0.5`, and much smaller for smaller step sizes.
+The resonance (cutoff) frequency is thus proportional to `a`.
+
+The filter update can be generalized by replacing the `a` coeffients in the input and damping steps:
+
+    y += a*v
+    v -= a*y
+    v -= b*v
+    v += c*u
+
+The result is that the damping is multiplied by `b/a` and the input volume by `c/a`.
+This is where the damping frequency (proportional to `b`) and the volume frequency (proportional to `c`) come from.
+
+#### Implementation
+TODO
