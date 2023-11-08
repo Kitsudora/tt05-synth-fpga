@@ -146,7 +146,7 @@ How it works
 ------------
 The main components are
 - Oscillators
-- Modifier oscillators for volume, cutoff, and damping
+- Control oscillators for volume, cutoff, and damping
 - Sweep oscillators
 - Filter
 - PWM
@@ -180,26 +180,26 @@ The frequency resolution is chosen so that the smallest frequency step, `513/512
 A range of 16 octaves is clearly overkill. A range of 8 octaves from 12 Hz to 3052 Hz might have been sufficient,
 but supporting a few octaves below the audible range helps when sweeping the frequency down.
 
-A 10 bit counter is used to generate a waveform with the desired period.
+A 10 bit counter   to generate a waveform with the desired period.
 In the simplest form, the counter would count down by one each sample, triggering and adding `512 + osc_period[8:0]` if the counter would otherwise become negative.
 This allows to create a `waveform_period` that is 512 to 1023 times `sample_rate`.
 
-#### Floating point format for periods, exponential conversion
 To be able to create a sawtooth waveform, the counter instead counts down by `2^n_saw` each sample, still triggering when needed.
 Each time the counter triggers, an `n_saw` bit counter called `saw` is increased by one. This `saw` wraps around once per `waveform_period`.
 
+#### Floating point format for periods, exponential conversion
 To support lower octaves, the synth contains a clock divider. `n = osc_period[12:9]` is used to select an enable signal from the clock divider, so that the counter is only updated once per `2^n` samples. When `n = 15`, the enable signal is made always low, to be able to stop an oscillator.
 
 The floating point representation causes the relative frequency accuracy to be same for each octave, saving bits compared to a linear representation of the period.
 It also acts as a pseudo-exponential converter, so that sweeps of cutoff frequency, volume, etc, have an exponential progression.
 The result is a piecewise linear approximation of an exponential function, but I have not noticed any ill audibly ill effects from this.
 
-#### Modulation oscillators
-Modulation oscillators have a lower resolution with only 5 bits mantissa. This is based on listening tests where I let cutoff frequency or volume sweep down, to see where I would start to hear stepwise motion. 4 bits might have been ok as well.
-Otherwise, modulation oscillators work very much like waveform oscillators except for one important difference:
+#### Control oscillators
+Control oscillators have a lower resolution with only 5 bits mantissa. This is based on listening tests where I let cutoff frequency or volume sweep down, to see where I would start to hear stepwise motion. 4 bits might have been ok as well.
+Otherwise, control oscillators work very much like waveform oscillators except for one important difference:
 a higher exponent doesn't cause the oscillator to trigger less often, insted, the filter is updated by a smaller step. More about this in the filter section.
 
-An 8 octave range for the modulation oscillators would not have been enough. To begin with, the highest cutoff frequency is about 30 kHz, to make sure that the filter can act as if completely open. An 8 octave range would only allow it to go down to about 120 Hz. When the cutoff frequency sweeps down, I needs to go a number of octaves below the oscillator frequency before the output can no longer be heard.
+An 8 octave range for the control oscillators would not have been enough. To begin with, the highest cutoff frequency is about 30 kHz, to make sure that the filter can act as if completely open. An 8 octave range would only allow it to go down to about 120 Hz. When the cutoff frequency sweeps down, I needs to go a number of octaves below the oscillator frequency before the output can no longer be heard.
 
 #### Sweep oscillators
 Sweep oscillators have an even lower resolution with only 3 bits of mantissa, to save bits.
@@ -208,9 +208,9 @@ Each time on triggers, the corresponding period is increased or decreased by one
 The 16 octave range for sweep oscillators is very useful to be able both to quickly sweep a frequency from the top octave to the bottom, and to sweep an oscillator frequency with a few cents per second.
 
 ### Filter
-A VCF is typically designed staring from a fixed frequency filter design with desirable properties, and then variable gains are used to shift the filter frequency. The same principle is used here.
+A VCF is typically designed staring from a fixed frequency filter design with desirable properties, and then variable gains are used to shift the filter frequency. The same principle applies here.
 
-The filter is a two-pole filter, and thus has two states. This is the simplest filter that can have a resonance peak.
+The filter is a two-pole filter, and so has two states. This is the simplest filter that can have a resonance peak.
 The states are called `y` and `v`. `y` is the output signal (position) and `v` is the velocity.
 
 #### Basic filter structure
@@ -224,7 +224,7 @@ be the vector of filter states. The basis of the filter is the update step `x_ne
     A = [ 1 a
          -a 1-a^2]
 
-which corresponds to a completely undamped filter, with `det(A) = 1`.
+which corresponds to a completely undamped filter, since `det(A) = 1`.
 The update step can be factored into two substeps:
 
     A = [ 1 0         [ 1 a
@@ -239,29 +239,40 @@ A damping step can be added with
 
     v -= a*v
 
-For small values of `a`, the combined dynamics approximate a differential equation
+If `a` goes to zero while the length of the time step is set to `a`, the combined dynamics approximate a differential equation
 
     y' =      v
     v' = -y - v
 
-an oscillator with a Q value of one.
-An input `u` can be added into the filter by changing `v -= a*y` to `v += a*(u - y)`, or by adding the update step
+which is an oscillator with a Q value of one.
+An input `u` can be added into the filter by changing the step `v -= a*y` to `v += a*(u - y)`, or by adding the update step
 
     v += a*u
 
 #### Varying the cutoff frequency, resonance, and volume
-For the resonance frequency of the undamped filter is `arcsin(a/2)/pi`, or approximately `a/(2*pi)`, with an error of 1.1% when `a = 0.5`, and much smaller for smaller step sizes.
+The resonance frequency of the undamped filter is `arcsin(a/2)/pi`, or approximately `a/(2*pi)` for small values of `a`, with an error of just 1.1% when `a = 0.5`, and much smaller for smaller step sizes.
 The resonance (cutoff) frequency is thus proportional to `a`.
 
 The filter update can be generalized by replacing the `a` coeffients in the input and damping steps:
 
-    y += a*v
-    v -= a*y
-    v -= b*v
-    v += c*u
+    y += a*v  // Undamped update part 1
+    v -= a*y  // Undamped update part 2
+    v -= b*v  // Damping update
+    v += c*u  // Input update
 
 The result is that the damping is multiplied by `b/a` and the input volume by `c/a`.
-This is where the damping frequency (proportional to `b`) and the volume frequency (proportional to `c`) come from.
+This is where the damping frequency (proportional to `b`) and the volume frequency (proportional to `c`) come from,
+and the reason that damping and volume depend on frequency ratios.
 
 #### Implementation
-TODO
+The filter implementation does not contain a multiplier to apply the update steps described above, it contains a barrel shifter (and an adder).
+The barrel shifter can multiply by `2^-n`, for different integers `n`.
+To interpolate between different powers of 2, the control oscillators are used to rapidly switch between two adjacent powers of 2 to achieve the desired average.
+
+Each control oscillator has a period of `period = (32 + control_period[4:0])` cycles, 32-63 cycles.
+The counter is decreased by 64 in each cycle, which means that the oscillator triggers one or two times per cycle,
+adding either `period` or  `period << 1` to the counter. In one period, the oscillator triggers 64 times.
+When the oscillator triggers twice in the same cycle, the barrel shift amount is decreased by one compared to when it triggers only once in the same cycle.
+
+The exponent `control_period[8:4]` is used to offset the shift amount. The result is that as `control_period` grows, the shift amounts gradually go from a mix of 0 and 1 to a mix of 1 and 2 to a mix of 2 and 3, and so forth...
+There is also a base shift of 3 added to the shift amount, to put the highest cutoff frequency at around 30 kHz. With 15 octaves of range, it would probably have made sense to reduce the base shift amount by at least one to increase the highest cutoff frequency to 60 kHz.
