@@ -276,3 +276,15 @@ When the oscillator triggers twice in the same cycle, the barrel shift amount is
 
 The exponent `control_period[8:4]` is used to offset the shift amount. The result is that as `control_period` grows, the shift amounts gradually go from a mix of 0 and 1 to a mix of 1 and 2 to a mix of 2 and 3, and so forth...
 There is also a base shift of 3 added to the shift amount, to put the highest cutoff frequency at around 30 kHz. With 15 octaves of range, it would probably have made sense to reduce the base shift amount by at least one to increase the highest cutoff frequency to 60 kHz.
+
+The intention was to hard sync the control oscillators for the filter to one of the waveform oscillators: When the waveform oscillator resets `saw` to zero, reset the counters of the control oscillators to zero as well. For fixed frequencies (and no detuning), this would create a periodic waveform, removing inharmonic distortion. Detuning makes the waveform change only slowly over time, so should not cause any big problems. But listening tests didn't reveal any problems with omitting the hard sync, so it was never implemented. Perhaps one reason is that the filters are updated at the full sample rate of around 1.5625 MHz, so the interaction with audible frequencies should be slight.
+
+### Dithering
+The states `y` and `v` are 20 bits each (which might be a few more bits than needed).
+The raw PWM resolution is only 5 bits.
+The synth output is taken from the `y` value. To increase the PWM resolution, a dither value is added to `y` before rounding to 5 bits.
+The dither value varies in all the bit positions that are rounded off, and is zero in those that are kept.
+It is created by bit reversing `oct_counter`, which counts up by one each sample and is the basis of the clock divider.
+This means that the most significant dither bit will toggle every sample, the next every other sample, etc.
+If a constant value is held for `2^n` samples, the dithering effectively adds `n` bits of resolution to the average value of the PWM output.
+A similar effect should be achieved as long as the output signal is uncorrelated with the dither.
