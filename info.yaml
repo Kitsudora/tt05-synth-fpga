@@ -66,7 +66,7 @@ documentation:
       The a dither signal is formed by bit reversing the `oct_counter` counter (which is used for the octave divider),
       and added to the output signal before rounding off to 5 bits for the PWM output.
 
-      For more details, see `README.md`.
+      For more details, see `README.md` in the project repository.
 
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
   how_to_test: |
@@ -80,38 +80,47 @@ documentation:
         - As a Pulse Width Modulated (PWM) signal.
         - As an 8 bit value on the 8 output pins, that can be reconstructed using a resistor ladder.
 
-      The PWM signal should be simpler to use, but be sure reduce the voltage with a resistive divider or similar
+      The PWM signal should be simpler to use, but be sure to reduce the voltage with a resistive divider or similar
       before connecting it to an audio device.
       **Note:Make sure that you know what you are doing when connecting an audio device to the output.
-      Don't apply more than 1 V between the terminals of an audio plug that is connected to line in.
-      5 V direct from the chip might damage your audio device.**
+      Don't apply more than 1 V between the terminals of an audio plug that is connected to line in or similar.
+      3.3 V direct from the chip might damage your audio device.**
 
-      Registers
-        - Address 0-1: `osc_period0`, 2-3: `osc_period1`; 2 bytes each
-        - Address 4-5: `cutoff_period`, 6-7: `damp_period`, 8-9: `vol_period`; 2 bytes each
-        - Address 10-14: `sweep_osc0_period, sweep_osc1_period, sweep_cutoff_period, sweep_damp_period, sweep_vol_period`
-        - Address 15: `cfg`
+      Most control registers consume 16 bits of address space each.
+      The memory map is laid out as follows: (one 16 bit word per line)
 
-        The registers are initialized to all zeros at reset.
-        The frequency registers are in a kind of floating point format:
-          - Oscillator periods are 13 bits: 4 bits exponent + 9 bits mantissa
-          - Cutoff, damping, and volume periods are 9 bits: 4 bits octave + 5 bits period
-          - Sweep periods are 8 bits signed: 1 bit sign + 4 bits octave + 3 bits mantissa
+          offset |  high byte |     low byte |
+          -------|------------|--------------|
+           0     |        osc1_period        |
+           2     |        osc2_period        |
+           4     |      cutoff_period        |
+           6     |        damp_period        |
+           8     |         vol_period        |
+          10     | osc2_sweep |   osc1_sweep |
+          12     | damp_sweep | cutoff_sweep |
+          14     |        cfg |    vol_sweep |
 
-        Increasing the octave by one doubles the period.
-        The volume depends on the ratio between the cutoff and volume periods (not their float representations).
-        The damping depends on the ratio between the cutoff and damping periods (not their float representations).
-        As the damping period gets longer than the cutoff period, resonance increases around the cutoff frequency.
-        If damping is low and/or volume is high, the filter will begin to saturate.
+      The registers are initialized to all ones at reset, which turns off all oscillators.
+      The frequency registers are in a kind of floating point format:
+        - Oscillator periods are 13 bits: 4 bits exponent + 9 bits mantissa
+        - Cutoff, damping, and volume periods are 9 bits: 4 bits octave + 5 bits period
+        - Sweep periods are 8 bits signed: 1 bit sign + 4 bits octave + 3 bits mantissa
 
-        Each sweep will increase or decrease the connected period.
-        Setting the exponent in any period to the max value of 15 achieves a frequency of zero. This is the state upon reset.
+      Increasing the exponent by one doubles the period, and goes down one octave. An exponent of 15 turns off the oscillator.
+      The volume depends on the ratio between the cutoff and volume periods (not their float representations).
+      The damping depends on the ratio between the cutoff and damping periods (not their float representations).
+      As the damping period gets longer than the cutoff period, resonance increases around the cutoff frequency.
+      If damping is low and/or volume is high, the filter will begin to saturate (which is sometimes a desirable effect).
 
-        The `cfg` register contains
-        - Bits 0-1: Waveform for oscillator 0: 0 = pulse, 1 = square, 2 = noise, 3 = saw
-        - Bits 2-3: Waveform for oscillator 1
-        - Bits 4-5: Unused
-        - Bits 6-7: Filter mode for oscillator 1 and 2, 0 = 1st order falloff, 1 = 2nd order falloff
+      Each sweep will increase or decrease the corresponding period.
+
+      The `cfg` register contains additional settings:
+      - Bits 0-1: Waveform for oscillator 0: 0 = pulse, 1 = square, 2 = noise, 3 = saw
+      - Bits 2-3: Waveform for oscillator 1
+      - Bits 4-5: Unused
+      - Bits 6-7: Filter mode for oscillator 1 and 2 respectively, 0 = 1st order falloff, 1 = 2nd order falloff
+
+      For more details, see `README.md` in the project repository.
 
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:
