@@ -1,5 +1,7 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg)
 
+![Example waveform: 2 bit sawtooth with increasing resonance](waveform.png)
+
 tt05-synth -- Analog inspired monosynth
 =======================================
 tt05-synth is a small analog inspired monosynth implementation in silicon to be taped out as part of tapeout TT05 at https://tinytapeout.com, using an area of 160 x 200 um in a 130 nm CMOS process.
