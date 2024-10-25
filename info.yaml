@@ -66,6 +66,8 @@ documentation:
       The a dither signal is formed by bit reversing the `oct_counter` counter (which is used for the octave divider),
       and added to the output signal before rounding off to 5 bits for the PWM output.
 
+      A recording of a demo tune played on the `tt05-synth` hardware can be found at https://youtu.be/ed3JROdFSls.
+
       For more details, see `README.md` in the project repository.
 
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
@@ -119,6 +121,13 @@ documentation:
       - Bits 2-3: Waveform for oscillator 1
       - Bits 4-5: Unused
       - Bits 6-7: Filter mode for oscillator 1 and 2 respectively, 0 = 1st order falloff, 1 = 2nd order falloff
+
+      Some test code using the microPython SDK (default firmware) can be found in tt05.py in the project repository.
+      Note that microPython is quite slow at writing the registers, which will cause audible and unpleasant artifacts
+      when trying to update more than one register at the same time.
+
+      The https://github.com/toivoh/tt05-synth-rp2040 repository contains an alternate firmware that can send commands
+      much quicker to the synth, more developed code for forming the commands, and a demo tune.
 
       For more details, see `README.md` in the project repository.
 

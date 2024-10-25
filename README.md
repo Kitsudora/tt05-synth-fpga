@@ -23,6 +23,8 @@ There is also an 8 bit output for the sample, but the PWM output should be easie
 
 The synth is intended to be clocked at 50 MHz and generate one sample every 32 cycles, or at `sample_rate = 1.5625 MHz`. Only 6 cycles are actually needed to generate a new sample, but using 32 cycles provides increased PWM resolution. The maximum oscillator frequency is `sample_rate/512`, or 3052 Hz if clocked at 50 MHz.
 
+A recording of a demo tune played on the `tt05-synth` hardware can be found at https://youtu.be/ed3JROdFSls.
+
 Signal flow
 -----------
 
@@ -143,6 +145,15 @@ The waveform for oscillator 1 is controlled by `cfg[1:0]`, and for oscillator 2 
 Each oscillator can be fed into the filter in one of two ways, depending on `cfg[6]` / `cfg[6]` for oscillator 1 / 2:
 - 0: First order fall-off
 - 1: Second order fall-off
+
+How to test
+-----------
+Some test code using the microPython SDK (default firmware) can be found in [tt05.py](tt05.py).
+Note that microPython is quite slow at writing the registers, which will cause audible and unpleasant artifacts
+when trying to update more than one register at the same time.
+
+The https://github.com/toivoh/tt05-synth-rp2040 repository contains an alternate firmware that can send commands
+much quicker to the synth, more developed code for forming the commands, and a demo tune.
 
 How it works
 ------------
