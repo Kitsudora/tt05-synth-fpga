@@ -68,7 +68,7 @@ documentation:
 
       A recording of a demo tune played on the `tt05-synth` hardware can be found at https://youtu.be/ed3JROdFSls.
 
-      For more details, see `README.md` in the project repository.
+      For more details, see [README.md](https://github.com/toivoh/tt05-synth/blob/main/README.md) in the project repository.
 
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
   how_to_test: |
@@ -129,7 +129,7 @@ documentation:
       The https://github.com/toivoh/tt05-synth-rp2040 repository contains an alternate firmware that can send commands
       much quicker to the synth, more developed code for forming the commands, and a demo tune.
 
-      For more details, see `README.md` in the project repository.
+      For more details, see [README.md](https://github.com/toivoh/tt05-synth/blob/main/README.md) in the project repository.
 
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:
@@ -165,7 +165,7 @@ documentation:
 # The following fields are optional
   tag:          "music, filter, sound, pwm"      # comma separated list of tags: test, encryption, experiment, clock, animation, utility, industrial, pwm, fpga, alu, microprocessor, risc, riscv, sensor, signal generator, fft, filter, music, bcd, sound, serial, timer, random number generator, calculator, decoder, counter, puzzle, multiplier, game, oscillator,
   external_hw:  "audio plug to connect to audio input, voltage divider to protect it!"      # Describe any external hardware needed
-  discord:      "toivoh"      # Your discord handle, used for communication and automatically assigning tapeout role after a submission
+  discord:      "possible_realities"      # Your discord handle, used for communication and automatically assigning tapeout role after a submission
   doc_link:     "https://github.com/toivoh/tt05-synth/blob/main/README.md"      # URL to longer form documentation, eg the README.md in your repository
   clock_hz:     50000000       # Clock frequency in Hz (if required)
   picture:      "waveform.png"      # relative path to a picture in your repository (must be 512kb or less)
