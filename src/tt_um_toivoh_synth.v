@@ -373,7 +373,7 @@ module tt_um_toivoh_synth #(
 	reg signed [FSTATE_BITS-1:0] v;
 
 	// Not registers, but assigned in the case below:
-	wire a_sign = a_src[FSTATE_BITS-1];
+	// wire a_sign = a_src[FSTATE_BITS-1];
 	reg [A_SEL_BITS-1:0] a_sel;
 	reg signed [SHIFTER_BITS-1:0] shifter_src;
 	wire signed [SHIFTER_BITS-1:0] dither;
@@ -427,7 +427,7 @@ module tt_um_toivoh_synth #(
 		endcase
 	end
 
-	wire signed [FSTATE_BITS-1:0] a_src = a_sel == A_SEL_Y ? y : v;
+	// wire signed [FSTATE_BITS-1:0] a_src = a_sel == A_SEL_Y ? y : v;
 
 	wire [OCT_BITS:0] nf0 = (nf_index == NFZERO_INDEX) ? '0 : (mod_oct[nf_index] + (1'b1 ^ do_mod[nf_index]));
 	wire [OCT_BITS-1:0] nf = nf0[OCT_BITS] ? '1 : nf0[OCT_BITS-1:0]; // saturate nf
@@ -439,10 +439,13 @@ module tt_um_toivoh_synth #(
 
 	// Saturate filter output
 	// ----------------------
-	wire [FSTATE_BITS-1:0] filter_sum = a_src + b_src;
+	// wire [FSTATE_BITS-1:0] filter_sum = a_src + b_src;
+	wire [FSTATE_BITS-1:0] filter_sum = b_src;
 	wire filter_sum_sign = filter_sum[FSTATE_BITS-1];
-	wire filter_max = ~a_sign & ~b_sign &  filter_sum_sign;
-	wire filter_min =  a_sign &  b_sign & ~filter_sum_sign;
+	// wire filter_max = ~a_sign & ~b_sign &  filter_sum_sign;
+	// wire filter_min =  a_sign &  b_sign & ~filter_sum_sign;
+	wire filter_max = ~b_sign &  filter_sum_sign;
+	wire filter_min =  b_sign & ~filter_sum_sign;
 	wire filter_sat = filter_max | filter_min;
 	wire [FSTATE_BITS-1:0] filter_sat_value = {~filter_max, {(FSTATE_BITS-1){filter_max}}};
 	wire [FSTATE_BITS-1:0] next_filter_state = filter_sat ? filter_sat_value : filter_sum[FSTATE_BITS-1:0];
@@ -485,8 +488,9 @@ module tt_um_toivoh_synth #(
 	// Output
 	// ======
 	//assign uo_out = saw[0];
-	wire [OUT_BITS-1:0] y_out = y[FSTATE_BITS-1 -: OUT_BITS];
-	assign uo_out = {~y_out[OUT_BITS-1], y_out[OUT_BITS-2:0]};
+	// wire [OUT_BITS-1:0] y_out = y[FSTATE_BITS-1 -: OUT_BITS];
+	// assign uo_out = {~y_out[OUT_BITS-1], y_out[OUT_BITS-2:0]};
+	assign uo_out = 8'h00;
 
 	// Debug aids
 	// ==========

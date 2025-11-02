@@ -17,13 +17,22 @@ wire pwm_o;
 assign pwm_o = uio_out[6];
 assign aud_pwm_o = pwm_o? 1'bz : 1'b0;
 
-tt_um_toivoh_synth audio_core(
+tt_um_toivoh_synth  #(
+        .OCT_BITS(4), // 8 octaves is enough for pitch, but the filters need to be able to sweep lower
+        .DIVIDER_BITS(16+1), // 14 for the pitch, 2 extra for the sweeps
+        .OSC_PERIOD_BITS(8),
+        .MOD_PERIOD_BITS(5),
+        .SWEEP_PERIOD_BITS(4),
+        .LOG2_SWEEP_UPDATE_PERIOD(2),
+        .WAVE_BITS(2),
+        .LEAST_SHR(2)
+	)audio_core(
     .ui_in(data_i),    // Dedicated inputs - connected to the input switches
     // .uo_out(),   // Dedicated outputs - connected to the 7 segment display
     .uio_in({storbe_i, 3'b000, addr_audio}),   // IOs: Bidirectional Input path
     .uio_out(uio_out),  // IOs: Bidirectional Output path
     // .uio_oe(),
-    .ena(),      // will go high when the design is enabled
+    .ena(1'b1),      // will go high when the design is enabled
     .clk(clk),      // clock
     .rst_n(rst_n)     // reset_n - low to reset
 );
