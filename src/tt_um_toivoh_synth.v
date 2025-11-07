@@ -44,19 +44,26 @@ module tt_um_toivoh_synth #(
 	localparam OUT_BITS = 8;
 
 	localparam CEIL_LOG2_NUM_OSCS = 1;
-	localparam NUM_OSCS = 2;
+	// localparam NUM_OSCS = 2;
+	localparam NUM_OSCS = 1;
 
-	localparam CEIL_LOG2_NUM_MODS = 2;
-	localparam NUM_MODS = 3;
+	// localparam CEIL_LOG2_NUM_MODS = 2;
+	localparam CEIL_LOG2_NUM_MODS = 1;
+	// localparam NUM_MODS = 3;
+	localparam NUM_MODS = 1;
+
 	localparam CUTOFF_INDEX = 0;
 	localparam DAMP_INDEX = 1;
 	localparam VOL_INDEX = 2;
 	localparam NFZERO_INDEX = 3; // Not a modulator; use to set nf to zero
 
-	localparam CEIL_LOG2_NUM_SWEEPS = 3;
+	// localparam CEIL_LOG2_NUM_SWEEPS = 3;
+	localparam CEIL_LOG2_NUM_SWEEPS = 2;
 	localparam NUM_SWEEPS = NUM_OSCS + NUM_MODS;
 
-	localparam CEIL_LOG2_CFG_WORDS = 3;
+	// localparam CEIL_LOG2_CFG_WORDS = 3;
+	localparam CEIL_LOG2_CFG_WORDS = 2;
+
 	localparam CFG_WORDS = 8;
 	localparam OSC_PERIOD_BASE = 0;
 	localparam MOD_PERIOD_BASE = NUM_OSCS;
@@ -366,6 +373,7 @@ module tt_um_toivoh_synth #(
 	localparam A_SEL_V = 1;
 
 	wire [1:0] wf = saw_index ? misc_cfg[3:2] : misc_cfg[1:0];
+	// wire [WAVE_BITS:0] curr_wave = (wf == WF_SQUARE) ? {~curr_saw[WAVE_BITS-1], 2'b10} :
 	wire [WAVE_BITS:0] curr_wave = (wf == WF_SQUARE) ? {~curr_saw[WAVE_BITS-1], 2'b10} :
 		((wf == WF_PULSE) ? {~(|curr_saw), 2'b01} : {~curr_saw[WAVE_BITS-1], curr_saw[WAVE_BITS-2:0], 1'b1});
 

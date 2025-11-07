@@ -38,13 +38,14 @@ tt_um_toivoh_synth  #(
 );
 
 reg [4:0] step;
+reg [7:0] counter = 0;
 
 always @(posedge clk) begin
     if (rst_n) begin
 
         case (step)
             5'd0: begin
-                data_i <= 8'ha5;
+                data_i <= 0;
                 storbe_i <= 1'b1;
                 addr_audio[3:1] <= addr_audio[3:1] + 1;
                 addr_audio[0] <= 1'b0;
@@ -55,7 +56,7 @@ always @(posedge clk) begin
             end
 
             5'd11: begin
-                data_i <= 8'h5a;
+                data_i <= counter + 1;
                 storbe_i <= 1'b1;
                 addr_audio[0] <= 1'b1;
             end
@@ -81,7 +82,7 @@ end
 // reg [7:0] addr
 // (* ram_style = "distributed" *) reg [7:0] mem [0:255];
 // initial $readmemh("init.hex", mem);
-
+ 
 // always @(posedge clk) begin
 //     data_i <= mem[addr];
 // end
